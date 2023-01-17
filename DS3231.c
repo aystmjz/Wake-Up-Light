@@ -4,12 +4,12 @@
 #define DS3231_ADDRESS 0xD0
 #define DS3231_CONTROL 0x0E
 #define DS3231_STATUS  0x0F
-#define DS3231_Temp		 0x0B
+#define DS3231_Temp    0x0B
 
-unsigned char code RTC_CLOCK_ADDR[7]={0x00,0x01,0x02,0x04,0x05,0x03,0x06};//Ãë·ÖÊ±ÈÕÔÂÖÜÄê
-unsigned char code RTC_ALARM1_ADDR[4]={0x07,0x08,0x09,0x0A};//Ãë·ÖÊ±ÈÕÔÂÖÜÄê
-unsigned char code RTC_ALARM2_ADDR[3]={0x0B,0x0C,0x0D};//Ãë·ÖÊ±ÈÕÔÂÖÜÄê
-extern unsigned char TIME[7] = {0, 0, 0x16, 0x1C, 0x06, 0x01, 0x17};//Ãë·ÖÊ±ÈÕÔÂÖÜÄê
+unsigned char code RTC_CLOCK_ADDR[7]={0x00,0x01,0x02,0x04,0x05,0x03,0x06};//ç§’åˆ†æ—¶æ—¥æœˆå‘¨å¹´
+unsigned char code RTC_ALARM1_ADDR[4]={0x07,0x08,0x09,0x0A};//ç§’åˆ†æ—¶æ—¥æœˆå‘¨å¹´
+unsigned char code RTC_ALARM2_ADDR[3]={0x0B,0x0C,0x0D};//ç§’åˆ†æ—¶æ—¥æœˆå‘¨å¹´
+extern unsigned char TIME[7] = {0, 0, 0x16, 0x1C, 0x06, 0x01, 0x17};//ç§’åˆ†æ—¶æ—¥æœˆå‘¨å¹´
 extern unsigned char Alarm_Set[8]={0,1,1,1,1,1,0,1};
 extern unsigned char Alarm_Date[2]={8,0};
 extern unsigned char Alarm_Status[2]={0,0};
@@ -78,7 +78,7 @@ void DS3231_WriteAlarm()
 		DS3231_WriteByte(DS3231_Temp,Temp);
 }
 
-void DS3231_Init()//DS3231³õÊ¼»¯º¯Êı
+void DS3231_Init()//DS3231åˆå§‹åŒ–å‡½æ•°
 {
 	unsigned char i,Temp;
 	DS3231_WriteByte(DS3231_CONTROL,0x05);
