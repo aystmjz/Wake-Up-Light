@@ -19,9 +19,10 @@ unsigned char PWM_Timer_Sec=0,PWM_Timer_Min=0;
 unsigned char PWM_Run_Flag=0;
 unsigned char Flag_PWM;
 
-unsigned int PWM_Mod=0;
+//unsigned int PWM_Mod=0;
 
-unsigned char Alarm_Enable;
+//unsigned char Alarm_Enable;
+unsigned char BUZ_Enable=1;//==Alarm_Set[0]
 //Alarm_Status[2]={0,0};
 
 unsigned char BUF_Enable=1;
@@ -29,7 +30,8 @@ unsigned char Time_Choose=0;
 unsigned char Alarm_Choose=0;
 char Alarm_Choose_Flag=0;
 char Time_Choose_Flag=0;
-sbit  BUZ=P0^0;
+sbit BUZ=P0^0;
+sbit RELAY=P2^0;
  int Alarm_ComeTime;
 void Wait_Key()
 {
@@ -40,7 +42,8 @@ void Wait_Key()
 void KeyNumber_CTRL1()
 {
 	
-	Timer2_Init();
+	DS3231_Init();
+	//Timer2_Init();
 	//ET0=0;
 }
 
@@ -51,6 +54,18 @@ PWM_Compare++;
 }
 void Show_Time();
 
+void Time_Judge()
+{
+	if(TIME[6]<20)TIME[6]=50;if(TIME[6]>50)TIME[6]=20;
+	if(TIME[4]<1)TIME[4]=12;if(TIME[4]>12)TIME[4]=1;
+	if(TIME[3]<1)TIME[3]=31;if(TIME[3]>31)TIME[3]=1;
+	if(TIME[5]<1)TIME[5]=7;if(TIME[5]>7)TIME[5]=1;
+	if(TIME[2]<0)TIME[2]=23;if(TIME[2]>23)TIME[2]=0;
+	if(TIME[1]<0)TIME[1]=59;if(TIME[1]>59)TIME[1]=0;
+	if(TIME[0]<0)TIME[0]=59;if(TIME[0]>59)TIME[0]=0;
+
+}
+
 void KeyNumber_Set_Clock()
 {
 	OLED_Clear();
@@ -60,48 +75,48 @@ void KeyNumber_Set_Clock()
 	while(KeyNum!=4)
 	{
 		KeyNum=Get_KeyNumber();
-		OLED_ShowNum(0,0,KeyNum,1,16);
+		
 		
 		while(!KeyNum){
-			
-		//√Î∑÷ ±»’‘¬÷‹ƒÍ
-			
+		//ÁßíÂàÜÊó∂Êó•ÊúàÂë®Âπ¥
+		KeyNum=Get_KeyNumber();
+		if(KeyNum)Time_Choose_Flag=0;
 		if(Time_Choose==6)
 		{
 			if(Time_Choose_Flag>=0)
-			OLED_ShowNum(0,2,TIME[6],2,16);//ƒÍ
+			OLED_ShowNum(0,2,TIME[6],2,16);//Âπ¥
 			else OLED_ShowString(0,2,"  ",16);
 		}
 		if(Time_Choose==4)
 		{
 			if(Time_Choose_Flag>=0)
-			OLED_ShowNum(32,2,TIME[4],2,16);//‘¬
+			OLED_ShowNum(32,2,TIME[4],2,16);//Êúà
 			else OLED_ShowString(32,2,"  ",16);
 		}
 		if(Time_Choose==3)
 		{
 			if(Time_Choose_Flag>=0)
-			OLED_ShowNum(64,2,TIME[3],2,16);//»’
+			OLED_ShowNum(64,2,TIME[3],2,16);//Êó•
 			else OLED_ShowString(64,2,"  ",16);
 		}
 		if(Time_Choose==5)
 		{
 			if(Time_Choose_Flag>=0)
-			OLED_ShowSymbol(112,2,TIME[5],16);	//÷‹
+			OLED_ShowSymbol(112,2,TIME[5],16);	//Âë®
 			else OLED_ShowString(112,2,"  ",16);
 		}
 		if(Time_Choose==2)
 		{
 			if(Time_Choose_Flag>=0)
 			{if(TIME[2]/10)OLED_ShowSymbol(16,4,TIME[2]/10+10,16);
-			OLED_ShowSymbol(32,4,TIME[2]%10+10,16);}// ±
+			OLED_ShowSymbol(32,4,TIME[2]%10+10,16);}//Êó∂
 			else
 			OLED_ShowString(16,4,"    ",16);
 		}
 		if(Time_Choose==1)
 		{
 			if(Time_Choose_Flag>=0)
-			{OLED_ShowSymbol(64,4,TIME[1]/10+10,16);//∑÷
+			{OLED_ShowSymbol(64,4,TIME[1]/10+10,16);//ÂàÜ
 			 OLED_ShowSymbol(80,4,TIME[1]%10+10,16);}
 			else 
 			OLED_ShowString(64,4,"    ",16);
@@ -109,22 +124,32 @@ void KeyNumber_Set_Clock()
 		if(Time_Choose==0)
 		{
 			if(Time_Choose_Flag>=0)
-			{OLED_ShowNum(98,5,TIME[0]/10,1,8);//√Î
+			{OLED_ShowNum(98,5,TIME[0]/10,1,8);//Áßí
 			OLED_ShowNum(106 ,5,TIME[0]%10,1,8);}
 			else OLED_ShowString(98,5,"  ",16);
 		}
 		
 		Time_Choose_Flag++;
-		if(Time_Choose_Flag==10)Time_Choose_Flag=-10;
 		
-		KeyNum=Get_KeyNumber();}
+		switch(Time_Choose)
+			{	
+				case 0: if(Time_Choose_Flag==20)Time_Choose_Flag=-10;break;
+				case 1: if(Time_Choose_Flag==5)Time_Choose_Flag=-5;break;
+				case 2: if(Time_Choose_Flag==5)Time_Choose_Flag=-5;break;
+				case 3: if(Time_Choose_Flag==10)Time_Choose_Flag=-10;break;
+				case 4: if(Time_Choose_Flag==10)Time_Choose_Flag=-10;break;
+				case 5: if(Time_Choose_Flag==10)Time_Choose_Flag=-10;break;
+				case 6: if(Time_Choose_Flag==10)Time_Choose_Flag=-10;break;
+			};
+		
+		}
 		
 
 		switch(KeyNum)
 				{	
-					case 1: TIME[Time_Choose]++;break;
-					case 2: TIME[Time_Choose]--;break;
-					case 3: Time_Choose++;Time_Choose%=7;break;
+					case 1: TIME[Time_Choose]++;Time_Judge();break;
+					case 2: TIME[Time_Choose]--;Time_Judge();break;
+					case 3: Time_Choose++;Time_Choose%=7;Time_Choose_Flag=-5;break;
 					case 4: DS3231_WriteTime();OLED_Clear(); break;
 				}
 	
@@ -135,100 +160,237 @@ void WriteAlarm()
 {
 			switch(PWM_Mod)
 		{	
-			case 0: TIME[2]=(Alarm_Date[0]*60+Alarm_Date[1]-5)/60;
-							TIME[1]=(Alarm_Date[0]*60+Alarm_Date[1]-5)%60;break;
-			case 1: TIME[2]=(Alarm_Date[0]*60+Alarm_Date[1]-10)/60;
-							TIME[1]=(Alarm_Date[0]*60+Alarm_Date[1]-10)%60;break;
-			case 2: TIME[2]=(Alarm_Date[0]*60+Alarm_Date[1]-15)/60;
-							TIME[1]=(Alarm_Date[0]*60+Alarm_Date[1]-15)%60;break;
-			case 3: TIME[2]=(Alarm_Date[0]*60+Alarm_Date[1]-20)/60;
-							TIME[1]=(Alarm_Date[0]*60+Alarm_Date[1]-20)%60;break;
-			case 4: TIME[2]=(Alarm_Date[0]*60+Alarm_Date[1]-30)/60;
-							TIME[1]=(Alarm_Date[0]*60+Alarm_Date[1]-30)%60;break;
-			case 5: TIME[2]=(Alarm_Date[0]*60+Alarm_Date[1]-40)/60;
-							TIME[1]=(Alarm_Date[0]*60+Alarm_Date[1]-40)%60;break;
-			case 6: TIME[2]=(Alarm_Date[0]*60+Alarm_Date[1]-60)/60;
-							TIME[1]=(Alarm_Date[0]*60+Alarm_Date[1]-60)%60;break;
+			case 0: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-5)/60;
+							Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-5)%60;break;
+			case 1: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-10)/60;
+							Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-10)%60;break;
+			case 2: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-15)/60;
+							Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-15)%60;break;
+			case 3: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-20)/60;
+							Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-20)%60;break;
+			case 4: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-30)/60;
+							Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-30)%60;break;
+			case 5: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-40)/60;
+							Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-40)%60;break;
+			case 6: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-60)/60;
+							Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-60)%60;break;
 		}
 	DS3231_WriteAlarm();
 }
 		
-		
+void Alarm_Judge()
+{
+	if(Alarm_Date[0]<0)Alarm_Date[0]=23;if(Alarm_Date[0]>23)Alarm_Date[0]=0;
+	if(Alarm_Date[1]<0)Alarm_Date[1]=59;if(Alarm_Date[1]>59)Alarm_Date[1]=0;
+	if(PWM_Mod<0)PWM_Mod=6;if(PWM_Mod>6)PWM_Mod=0;
+}
+
 void KeyNumber_Set_Alarm()
 {//5,10,15,20,30,40,60
 	OLED_Clear();
+	OLED_ShowSymbol(0,0,0,16);
+	if(Alarm_Set[1])OLED_ShowSymbol(16,2,31,16);
+	else OLED_ShowSymbol(16,2,32,16);
+	OLED_ShowSymbol(16,0,1,16);
+	if(Alarm_Set[2])OLED_ShowSymbol(32,2,31,16);
+	else OLED_ShowSymbol(32,2,32,16);
+	OLED_ShowSymbol(32,0,2,16);
+	if(Alarm_Set[3])OLED_ShowSymbol(48,2,31,16);
+	else OLED_ShowSymbol(48,2,32,16);
+	OLED_ShowSymbol(48,0,3,16);
+	if(Alarm_Set[4])OLED_ShowSymbol(64,2,31,16);
+	else OLED_ShowSymbol(64,2,32,16);
+	OLED_ShowSymbol(64,0,4,16);
+	if(Alarm_Set[5])OLED_ShowSymbol(80,2,31,16);
+	else OLED_ShowSymbol(80,2,32,16);
+	OLED_ShowSymbol(80,0,5,16);
+	if(Alarm_Set[6])OLED_ShowSymbol(96,2,31,16);
+	else OLED_ShowSymbol(96,2,32,16);
+	OLED_ShowSymbol(96,0,6,16);
+	if(Alarm_Set[7])OLED_ShowSymbol(112,2,31,16);
+	else OLED_ShowSymbol(112,2,32,16);
+	OLED_ShowSymbol(112,0,7,16);
+	if(Alarm_Date[0]/10)OLED_ShowSymbol(16,4,Alarm_Date[0]/10+10,16);
+	OLED_ShowSymbol(32,4,Alarm_Date[0]%10+10,16);//Êó∂
+	OLED_ShowSymbol(48,4,21,16);
+	OLED_ShowSymbol(64,4,Alarm_Date[1]/10+10,16);//ÂàÜ
+	OLED_ShowSymbol(80,4,Alarm_Date[1]%10+10,16);
 	
+	OLED_ShowSymbol(0,6,24,16);
+	OLED_ShowSymbol(16,6,25,16);
+	if(Alarm_Enable)OLED_ShowSymbol(32,6,31,16);
+	else OLED_ShowSymbol(32,6,32,16);
+	OLED_ShowSymbol(48,6,33,16);
+	OLED_ShowSymbol(64,6,34,16);
+	OLED_ShowSymbol(80,6,35,16);
+	OLED_ShowSymbol(96,6,36,16);
+	if(Alarm_Set[0])OLED_ShowSymbol(112,6,31,16);
+	else OLED_ShowSymbol(112,6,32,16);
+	
+	switch(PWM_Mod)
+			{	
+				case 0: OLED_ShowNum(104,4,5,2,16);break;
+				case 1: OLED_ShowNum(104,4,10,2,16);break;
+				case 2: OLED_ShowNum(104,4,15,2,16);break;
+				case 3: OLED_ShowNum(104,4,20,2,16);break;
+				case 4: OLED_ShowNum(104,4,30,2,16);break;
+				case 5: OLED_ShowNum(104,4,40,2,16);break;
+				case 6: OLED_ShowNum(104,4,60,2,16);break;
+			}//5,10,15,20,30,40,60
+	OLED_ShowChar(120,4,'m',16);
 	
 	KeyNum=Get_KeyNumber();
 	while(KeyNum!=4)
 	{
 		KeyNum=Get_KeyNumber();
 
-		
+
 		while(!KeyNum){
 			
-		if(Alarm_Choose==6)
+		KeyNum=Get_KeyNumber();
+		if(KeyNum)Alarm_Choose_Flag=0;
+		if(Alarm_Choose==0)
 		{
+			if(Alarm_Set[1])OLED_ShowSymbol(16,2,31,16);
+			else OLED_ShowSymbol(16,2,32,16);
 			if(Alarm_Choose_Flag>=0)
-			Get_KeyNumber();
-			//else 
-		}
-		if(Alarm_Choose==4)
-		{
-			if(Alarm_Choose_Flag>=0)
-			Get_KeyNumber();
-			//else 
-		}
-		if(Alarm_Choose==3)
-		{
-			if(Alarm_Choose_Flag>=0)
-			Get_KeyNumber();
-			//else 
-		}
-		if(Alarm_Choose==5)
-		{
-			if(Alarm_Choose_Flag>=0)
-			Get_KeyNumber();
-			//else 
-		}
-		if(Alarm_Choose==2)
-		{
-			if(Alarm_Choose_Flag>=0)
-			{
-			Get_KeyNumber();
-			}// ±
-			//else
-
+			OLED_ShowSymbol(16,0,1,16);
+			else OLED_ShowString(16,0,"  ",16);
 		}
 		if(Alarm_Choose==1)
 		{
+			if(Alarm_Set[2])OLED_ShowSymbol(32,2,31,16);
+			else OLED_ShowSymbol(32,2,32,16);
 			if(Alarm_Choose_Flag>=0)
-			{Get_KeyNumber();
-			}
-			//else 
+			OLED_ShowSymbol(32,0,2,16);
+			else OLED_ShowString(32,0,"  ",16);
+		}
+		if(Alarm_Choose==2)
+		{
+			if(Alarm_Set[3])OLED_ShowSymbol(48,2,31,16);
+			else OLED_ShowSymbol(48,2,32,16);
+			if(Alarm_Choose_Flag>=0)
+			OLED_ShowSymbol(48,0,3,16);
+			else OLED_ShowString(48,0,"  ",16);
+		}
+		if(Alarm_Choose==3)
+		{
+			if(Alarm_Set[4])OLED_ShowSymbol(64,2,31,16);
+			else OLED_ShowSymbol(64,2,32,16);
+			if(Alarm_Choose_Flag>=0)
+			OLED_ShowSymbol(64,0,4,16);
+			else OLED_ShowString(64,0,"  ",16);
+		}
+		if(Alarm_Choose==4)
+		{
+			if(Alarm_Set[5])OLED_ShowSymbol(80,2,31,16);
+			else OLED_ShowSymbol(80,2,32,16);
+			if(Alarm_Choose_Flag>=0)
+			OLED_ShowSymbol(80,0,5,16);
+			else OLED_ShowString(80,0,"  ",16);
 
 		}
-		if(Alarm_Choose==0)
+		if(Alarm_Choose==5)
+		{
+			if(Alarm_Set[6])OLED_ShowSymbol(96,2,31,16);
+			else OLED_ShowSymbol(96,2,32,16);
+			if(Alarm_Choose_Flag>=0)
+			OLED_ShowSymbol(96,0,6,16);
+			else OLED_ShowString(96,0,"  ",16);
+
+		}
+		if(Alarm_Choose==6)
+		{
+			if(Alarm_Set[7])OLED_ShowSymbol(112,2,31,16);
+			else OLED_ShowSymbol(112,2,32,16);
+			if(Alarm_Choose_Flag>=0)
+			OLED_ShowSymbol(112,0,7,16);
+			else OLED_ShowString(112,0,"  ",16);
+		}
+
+			if(Alarm_Choose==7)
 		{
 			if(Alarm_Choose_Flag>=0)
-			{Get_KeyNumber();
-			}
-			//else 
+			{if(Alarm_Date[0]/10)OLED_ShowSymbol(16,4,Alarm_Date[0]/10+10,16);
+			OLED_ShowSymbol(32,4,Alarm_Date[0]%10+10,16);}//Êó∂
+			else
+			OLED_ShowString(16,4,"    ",16);
+		}
+		
+			if(Alarm_Choose==8)
+		{
+			if(Alarm_Choose_Flag>=0)
+			{OLED_ShowSymbol(64,4,Alarm_Date[1]/10+10,16);//ÂàÜ
+			 OLED_ShowSymbol(80,4,Alarm_Date[1]%10+10,16);}
+			else 
+			OLED_ShowString(64,4,"    ",16);
+		}
+		
+			if(Alarm_Choose==9)
+		{
+			if(Alarm_Enable)OLED_ShowSymbol(32,6,31,16);
+			else OLED_ShowSymbol(32,6,32,16);
+			if(Alarm_Choose_Flag>=0)
+			{OLED_ShowSymbol(0,6,24,16);
+			 OLED_ShowSymbol(16,6,25,16);}
+			else 
+			OLED_ShowString(0,6,"    ",16);
+		}
+		
+			if(Alarm_Choose==10)
+		{
+			if(Alarm_Set[0])OLED_ShowSymbol(112,6,31,16);
+			else OLED_ShowSymbol(112,6,32,16);
+			if(Alarm_Choose_Flag>=0)
+			{OLED_ShowSymbol(48,6,33,16);
+			 OLED_ShowSymbol(64,6,34,16);
+			 OLED_ShowSymbol(80,6,35,16);
+			 OLED_ShowSymbol(96,6,36,16);}
+			else 
+			OLED_ShowString(48,6,"        ",16);
+		}
+		
+		if(Alarm_Choose==11)
+		{
+			switch(PWM_Mod)
+			{	
+				case 0: OLED_ShowNum(104,4,5,2,16);break;
+				case 1: OLED_ShowNum(104,4,10,2,16);break;
+				case 2: OLED_ShowNum(104,4,15,2,16);break;
+				case 3: OLED_ShowNum(104,4,20,2,16);break;
+				case 4: OLED_ShowNum(104,4,30,2,16);break;
+				case 5: OLED_ShowNum(104,4,40,2,16);break;
+				case 6: OLED_ShowNum(104,4,60,2,16);break;
+			}//5,10,15,20,30,40,60
+			if(Alarm_Choose_Flag>=0)
+			OLED_ShowChar(120,4,'m',16);
+			else 
+			OLED_ShowString(120,4," ",16);
 		}
 		
 		Alarm_Choose_Flag++;
-		if(Alarm_Choose_Flag==10)Alarm_Choose_Flag=-10;
+		if(Alarm_Choose<9||Alarm_Choose==11)
+		{	if(Alarm_Choose_Flag==5)Alarm_Choose_Flag=-5;}
+		else if(Alarm_Choose==9)
+		{if(Alarm_Choose_Flag==3)Alarm_Choose_Flag=-3;}
+		else
+		{if(Alarm_Choose_Flag==2)Alarm_Choose_Flag=-2;}
 			
-		KeyNum=Get_KeyNumber();}
-		
+		}
 		
 		switch(KeyNum)
 				{	
 					case 1: if(Alarm_Choose<7)Alarm_Set[Alarm_Choose+1]=!Alarm_Set[Alarm_Choose+1];
-									else Alarm_Date[Alarm_Choose-7]++;break;
+									else if(Alarm_Choose<9)Alarm_Date[Alarm_Choose-7]++;
+									else if(Alarm_Choose==9)Alarm_Enable=!Alarm_Enable;
+									else if(Alarm_Choose==11)PWM_Mod++;
+									else 	Alarm_Set[0]=!Alarm_Set[0]; Alarm_Judge();break;
 					case 2: if(Alarm_Choose<7)Alarm_Set[Alarm_Choose+1]=!Alarm_Set[Alarm_Choose+1];
-									else Alarm_Date[Alarm_Choose-7]--;break;
-					case 3: Alarm_Choose++;Alarm_Choose%=7;break;
+									else if(Alarm_Choose<9)Alarm_Date[Alarm_Choose-7]--;
+									else if(Alarm_Choose==9)Alarm_Enable=!Alarm_Enable;
+									else if(Alarm_Choose==11)PWM_Mod--;
+									else 	Alarm_Set[0]=!Alarm_Set[0]; Alarm_Judge();break;
+					case 3: Alarm_Choose++;Alarm_Choose%=12;Alarm_Choose_Flag=-2;break;
 					case 4: WriteAlarm();OLED_Clear(); break;
 				}
 	
@@ -244,17 +406,17 @@ void KeyNumber_Set()
 {
 	OLED_Clear(); 
 	
-	OLED_ShowSymbol(48,0,28,16);//…Ë
-	OLED_ShowSymbol(64,0,29,16);//÷√
+	OLED_ShowSymbol(48,0,28,16);//ËÆæ
+	OLED_ShowSymbol(64,0,29,16);//ÁΩÆ
 	
-	OLED_ShowSymbol(0,3,22,16);// ±
-	OLED_ShowSymbol(16,3,23,16);//º‰
+	OLED_ShowSymbol(0,3,22,16);//Êó∂
+	OLED_ShowSymbol(16,3,23,16);//Èó¥
 	
-	OLED_ShowSymbol(48,3,24,16);//ƒ÷
-	OLED_ShowSymbol(64,3,25,16);//÷”
+	OLED_ShowSymbol(48,3,24,16);//Èóπ
+	OLED_ShowSymbol(64,3,25,16);//Èíü
 	
-	OLED_ShowSymbol(96,3,26,16);//∆‰
-	OLED_ShowSymbol(112,3,27,16);//À˚
+	OLED_ShowSymbol(96,3,26,16);//ÂÖ∂
+	OLED_ShowSymbol(112,3,27,16);//‰ªñ
 	
 	Wait_Key();
 	switch(KeyNum)
@@ -279,31 +441,31 @@ void KeyNumber_CTRL4()
 
 
 void Show_Time()
-{//√Î∑÷ ±»’‘¬÷‹ƒÍ
+{//ÁßíÂàÜÊó∂Êó•ÊúàÂë®Âπ¥
 		OLED_ShowNum(0,2,TIME[6],2,16);
-		OLED_ShowSymbol(16,2,8,16);//ƒÍ
+		OLED_ShowSymbol(16,2,8,16);//Âπ¥
 		
 		OLED_ShowNum(32,2,TIME[4],2,16);
-		OLED_ShowSymbol(48,2,9,16);//‘¬
+		OLED_ShowSymbol(48,2,9,16);//Êúà
 		
 		OLED_ShowNum(64,2,TIME[3],2,16);
-		OLED_ShowSymbol(80,2,7,16);//»’
+		OLED_ShowSymbol(80,2,7,16);//Êó•
 		
 
-		OLED_ShowSymbol(96,2,0,16);//÷‹
+		OLED_ShowSymbol(96,2,0,16);//Âë®
 		OLED_ShowSymbol(112,2,TIME[5],16);
 	
 		if(TIME[2]/10)OLED_ShowSymbol(16,4,TIME[2]/10+10,16);
-		OLED_ShowSymbol(32,4,TIME[2]%10+10,16);// ±
+		OLED_ShowSymbol(32,4,TIME[2]%10+10,16);//Êó∂
 		
 
 		OLED_ShowSymbol(48,4,21,16);
 		
 		OLED_ShowSymbol(64,4,TIME[1]/10+10,16);
-		OLED_ShowSymbol(80,4,TIME[1]%10+10,16);//∑÷
+		OLED_ShowSymbol(80,4,TIME[1]%10+10,16);//ÂàÜ
 		
 		
-		OLED_ShowNum(98,5,TIME[0]/10,1,8);//√Î
+		OLED_ShowNum(98,5,TIME[0]/10,1,8);//Áßí
 		OLED_ShowNum(106 ,5,TIME[0]%10,1,8);
 		
 }
@@ -317,9 +479,9 @@ void main()
 	Int1_Init();
 	Timer_Init();
 	DS3231_Init();
-	OLED_Init();//≥ı ºªØOLED
-//	OLED_ColorTurn(0);//0’˝≥£œ‘ æ£¨1 ∑¥…´œ‘ æ
-  //OLED_DisplayTurn(0);//0’˝≥£œ‘ æ 1 ∆¡ƒª∑≠◊™œ‘ æ
+	OLED_Init();//ÂàùÂßãÂåñOLED
+//	OLED_ColorTurn(0);//0Ê≠£Â∏∏ÊòæÁ§∫Ôºå1 ÂèçËâ≤ÊòæÁ§∫
+  //OLED_DisplayTurn(0);//0Ê≠£Â∏∏ÊòæÁ§∫ 1 Â±èÂπïÁøªËΩ¨ÊòæÁ§∫
 	
 			//DHT11_Read_RH_C();
 	//OLED_ShowString(8,0,"OK?",16);
@@ -334,7 +496,7 @@ void main()
 			{	
 				case 1: KeyNumber_CTRL1();break;
 				case 2: KeyNumber_CTRL2();break;
-				case 3: PWM_Run();break;//KeyNumber_Set();break;
+				case 3: KeyNumber_Set();break;
 				case 4: KeyNumber_CTRL4();break;
 			}
 		}
@@ -354,8 +516,8 @@ void main()
 		Show_Time();
 		
 		
-		OLED_ShowSymbol(0,6,30,16);//ƒ÷÷”±Í÷æ
-		if(Alarm_Date[0]/10)OLED_ShowNum(16,6,Alarm_Date[0]/10,1,16);//ƒ÷÷”
+		OLED_ShowSymbol(0,6,30,16);//ÈóπÈíüÊ†áÂøó
+		if(Alarm_Date[0]/10)OLED_ShowNum(16,6,Alarm_Date[0]/10,1,16);//ÈóπÈíü
 		OLED_ShowNum(24,6,Alarm_Date[0],1,16);
 		OLED_ShowChar(32,6,':',16);
 		OLED_ShowNum(40,6,Alarm_Date[1]/10,1,16);
@@ -375,12 +537,7 @@ void main()
 		
 		
 		//OLED_ShowString(112,0,"lx",16);
-		OLED_ShowNum(0,2,TIME[0],3,16);
-		OLED_ShowNum(0,2,TIME[0],3,16);
-		OLED_ShowNum(0,2,TIME[0],3,16);
-		OLED_ShowNum(0,2,TIME[0],3,16);
-		OLED_ShowNum(0,2,TIME[0],3,16);
-		OLED_ShowNum(0,2,TIME[0],3,16);
+	
 		
 		
 		
@@ -402,7 +559,7 @@ void main()
 	DS3231_ReadTime();
 	//DHT11_Read_RH_C();
 	GY302_Read_lx();
-	if(!(TIME[1]&&TIME[0]))BUZ=0;
+	if((!(TIME[1]&&TIME[0]))&&Alarm_Set[0])BUZ=0;
 		else BUZ=1;
 	if(PWM_Run_Flag){DS3231_WriteByte(DS3231_STATUS,0x00);PWM_Run_Flag=0;PWM_Run();}
 	}
@@ -418,17 +575,17 @@ void main()
 #define CMD_OVER 9
 
 unsigned char UART_RX_BUF[3];
-//TIME[7] = {0, 0, 0x16, 0x1C, 0x06, 0x01, 0x17};//0√Î1∑÷2 ±3»’4‘¬5÷‹6ƒÍ
+//TIME[7] = {0, 0, 0x16, 0x1C, 0x06, 0x01, 0x17};//0Áßí1ÂàÜ2Êó∂3Êó•4Êúà5Âë®6Âπ¥
 void BlueTooth_CMD0()
 {
-	BlueTooth_SendString("µ±«∞ ±º‰Œ™£∫");
+	BlueTooth_SendString("ÂΩìÂâçÊó∂Èó¥‰∏∫Ôºö");
 	BlueTooth_SendString("20");
 	BlueTooth_SendByte(TIME[6]);
-	BlueTooth_SendString("ƒÍ");
+	BlueTooth_SendString("Âπ¥");
 	BlueTooth_SendByte(TIME[4]);
-	BlueTooth_SendString("‘¬");
+	BlueTooth_SendString("Êúà");
 	BlueTooth_SendByte(TIME[3]);
-	BlueTooth_SendString("»’");
+	BlueTooth_SendString("Êó•");
 	
 	BlueTooth_SendString(" ");
 	BlueTooth_SendByte(TIME[2]);
@@ -441,20 +598,20 @@ void BlueTooth_CMD0()
 
 void BlueTooth_CMD1()
 {
-	BlueTooth_SendString("µ±«∞Œ¬∂»£∫");
+	BlueTooth_SendString("ÂΩìÂâçÊ∏©Â∫¶Ôºö");
 	BlueTooth_SendByte(DHT11_RH_C[1]);
 	BlueTooth_SendString(".");
 	BlueTooth_SendByte(DHT11_RH_C[2]);
-	BlueTooth_SendString("°Ê");
-	BlueTooth_SendString(" ™∂»");
+	BlueTooth_SendString("‚ÑÉ");
+	BlueTooth_SendString("ÊπøÂ∫¶");
 	BlueTooth_SendByte(DHT11_RH_C[0]);
 	BlueTooth_SendString("RH");
 }
 
 void BlueTooth_CMD2()
 {
-	BlueTooth_SendString("µ±«∞ƒ÷÷”–≈œ¢£∫");
-	BlueTooth_SendString(" ±º‰£∫");
+	BlueTooth_SendString("ÂΩìÂâçÈóπÈíü‰ø°ÊÅØÔºö");
+	BlueTooth_SendString("Êó∂Èó¥Ôºö");
 	BlueTooth_SendByte(Alarm_Date[0]);
 	BlueTooth_SendString(":");
 	BlueTooth_SendByte(Alarm_Date[1]);
@@ -537,9 +694,10 @@ void Timer0_Routine() interrupt 1
 	}
 }
 
-//5,10,15,20,30,40,60
+
 void PWM_Run()
 {
+	RELAY=0;
 	ET2=1;
 	PWM_Timer=0;PWM_Timer_Sec=0,PWM_Timer_Min=0;
 	
@@ -561,7 +719,7 @@ void PWM_Run()
 				case 4: PWM_Compare=PWM_Timer_Min*5/3;break;
 				case 5: PWM_Compare=PWM_Timer_Min*5/4;break;
 				case 6: PWM_Compare=PWM_Timer_Min*5/6;break;
-			}
+			}//5,10,15,20,30,40,60
 
 	}
 	EX0=1;
@@ -570,6 +728,7 @@ void PWM_Run()
 	EX1=0;
 	
 	ET2=0;
+	RELAY=1;
 }
 #define DS3231_STATUS 0x0F
 
@@ -597,13 +756,11 @@ void Timer2_Routine(void) interrupt 5
 
 	if(PWM_Couter<PWM_Compare)
 	{
-		P3_7=1;
-		P0_0=1;
+		P0_1=1;
 	}
 	else
 	{
-		P3_7=0;
-		P0_0=0;
+		P0_1=0;
 	}
 	PWM_Couter++;
 	PWM_Couter%=50;
