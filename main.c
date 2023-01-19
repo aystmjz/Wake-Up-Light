@@ -10,6 +10,7 @@
 #include "DHT11.h"
 #include "GY302.h"
 #include "STC89C5xRC.h"
+	 
 #define DS3231_STATUS 0x0F
 unsigned char KeyNum;
 #include <REGX52.H>
@@ -17,22 +18,28 @@ unsigned char PWM_Couter=0,f=0;
 unsigned int PWM_Timer=0,PWM_Compare=1;
 unsigned char PWM_Timer_Sec=0,PWM_Timer_Min=0;
 unsigned char PWM_Run_Flag=0;
-unsigned char Flag_PWM;
+unsigned char Refresh_Flag=0;
+unsigned char BlueTooth_Refresh_Flag=0;
+unsigned char Alarm_Reset_Flag=0;
+unsigned char Int1_Flag=0;
 
 //unsigned int PWM_Mod=0;
 
 //unsigned char Alarm_Enable;
-unsigned char BUZ_Enable=1;//==Alarm_Set[0]
+//unsigned char BUZ_Enable=1;//==Alarm_Set[0]
 //Alarm_Status[2]={0,0};
 
-unsigned char BUF_Enable=1;
+//unsigned char BUF_Enable=1;
 unsigned char Time_Choose=0;
 unsigned char Alarm_Choose=0;
 char Alarm_Choose_Flag=0;
 char Time_Choose_Flag=0;
 sbit BUZ=P0^0;
 sbit RELAY=P2^0;
- int Alarm_ComeTime;
+char TIME_Judge[7] = {0xFF, 0xFF,0xFF, 0xFF, 0xFF, 0xFF, 0xFF};//īؖʱɕՂלŪ
+unsigned char Alarm_Set_Judge[8]={0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+char Alarm_Date_Judge[2]={0xFF,0xFF};
+
 void Wait_Key()
 {
 		KeyNum=Get_KeyNumber();
@@ -42,19 +49,19 @@ void Wait_Key()
 void KeyNumber_CTRL1()
 {
 	
-	DS3231_Init();
+	EX0=1;
+	//DS3231_Init();
 	//Timer2_Init();
 	//ET0=0;
 }
 
 void KeyNumber_CTRL2()
 {
-PWM_Compare++;
-
+EX1=0;EX0=0;
 }
 void Show_Time();
 
-void Time_Judge()
+void TimeJudge()
 {
 	if(TIME[6]<20)TIME[6]=50;if(TIME[6]>50)TIME[6]=20;
 	if(TIME[4]<1)TIME[4]=12;if(TIME[4]>12)TIME[4]=1;
@@ -69,7 +76,21 @@ void Time_Judge()
 void KeyNumber_Set_Clock()
 {
 	OLED_Clear();
-	Show_Time();
+	OLED_ShowNum(0,2,TIME[6],2,16);
+	OLED_ShowSymbol(16,2,8,16);//Ū
+	OLED_ShowNum(32,2,TIME[4],2,16);
+	OLED_ShowSymbol(48,2,9,16);//Ղ
+	OLED_ShowNum(64,2,TIME[3],2,16);
+	OLED_ShowSymbol(80,2,7,16);//ɕ
+	OLED_ShowSymbol(96,2,0,16);//ל
+	OLED_ShowSymbol(112,2,TIME[5],16);
+	if(TIME[2]/10)OLED_ShowSymbol(16,4,TIME[2]/10+10,16);
+	OLED_ShowSymbol(32,4,TIME[2]%10+10,16);//ʱ
+	OLED_ShowSymbol(48,4,21,16);
+	OLED_ShowSymbol(64,4,TIME[1]/10+10,16);
+	OLED_ShowSymbol(80,4,TIME[1]%10+10,16);//ؖ
+	OLED_ShowNum(98,5,TIME[0]/10,1,8);//ī
+	OLED_ShowNum(106 ,5,TIME[0]%10,1,8);
 	
 	KeyNum=Get_KeyNumber();
 	while(KeyNum!=4)
@@ -78,45 +99,45 @@ void KeyNumber_Set_Clock()
 		
 		
 		while(!KeyNum){
-		//秒分时日月周年
+		//īؖʱɕՂלŪ
 		KeyNum=Get_KeyNumber();
 		if(KeyNum)Time_Choose_Flag=0;
 		if(Time_Choose==6)
 		{
 			if(Time_Choose_Flag>=0)
-			OLED_ShowNum(0,2,TIME[6],2,16);//年
+			OLED_ShowNum(0,2,TIME[6],2,16);//Ū
 			else OLED_ShowString(0,2,"  ",16);
 		}
 		if(Time_Choose==4)
 		{
 			if(Time_Choose_Flag>=0)
-			OLED_ShowNum(32,2,TIME[4],2,16);//月
+			OLED_ShowNum(32,2,TIME[4],2,16);//Ղ
 			else OLED_ShowString(32,2,"  ",16);
 		}
 		if(Time_Choose==3)
 		{
 			if(Time_Choose_Flag>=0)
-			OLED_ShowNum(64,2,TIME[3],2,16);//日
+			OLED_ShowNum(64,2,TIME[3],2,16);//ɕ
 			else OLED_ShowString(64,2,"  ",16);
 		}
 		if(Time_Choose==5)
 		{
 			if(Time_Choose_Flag>=0)
-			OLED_ShowSymbol(112,2,TIME[5],16);	//周
+			OLED_ShowSymbol(112,2,TIME[5],16);	//ל
 			else OLED_ShowString(112,2,"  ",16);
 		}
 		if(Time_Choose==2)
 		{
 			if(Time_Choose_Flag>=0)
 			{if(TIME[2]/10)OLED_ShowSymbol(16,4,TIME[2]/10+10,16);
-			OLED_ShowSymbol(32,4,TIME[2]%10+10,16);}//时
+			OLED_ShowSymbol(32,4,TIME[2]%10+10,16);}//ʱ
 			else
 			OLED_ShowString(16,4,"    ",16);
 		}
 		if(Time_Choose==1)
 		{
 			if(Time_Choose_Flag>=0)
-			{OLED_ShowSymbol(64,4,TIME[1]/10+10,16);//分
+			{OLED_ShowSymbol(64,4,TIME[1]/10+10,16);//ؖ
 			 OLED_ShowSymbol(80,4,TIME[1]%10+10,16);}
 			else 
 			OLED_ShowString(64,4,"    ",16);
@@ -124,7 +145,7 @@ void KeyNumber_Set_Clock()
 		if(Time_Choose==0)
 		{
 			if(Time_Choose_Flag>=0)
-			{OLED_ShowNum(98,5,TIME[0]/10,1,8);//秒
+			{OLED_ShowNum(98,5,TIME[0]/10,1,8);//ī
 			OLED_ShowNum(106 ,5,TIME[0]%10,1,8);}
 			else OLED_ShowString(98,5,"  ",16);
 		}
@@ -147,8 +168,8 @@ void KeyNumber_Set_Clock()
 
 		switch(KeyNum)
 				{	
-					case 1: TIME[Time_Choose]++;Time_Judge();break;
-					case 2: TIME[Time_Choose]--;Time_Judge();break;
+					case 1: TIME[Time_Choose]++;TimeJudge();break;
+					case 2: TIME[Time_Choose]--;TimeJudge();break;
 					case 3: Time_Choose++;Time_Choose%=7;Time_Choose_Flag=-5;break;
 					case 4: DS3231_WriteTime();OLED_Clear(); break;
 				}
@@ -175,6 +196,12 @@ void WriteAlarm()
 			case 6: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-60)/60;
 							Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-60)%60;break;
 		}
+		
+	if(Alarm_Date_Temp[0]<0||Alarm_Date_Temp[1]<0)
+	{
+		Alarm_Date_Temp[0]=(1440+Alarm_Date_Temp[0]*60+Alarm_Date_Temp[1])/60;
+		Alarm_Date_Temp[1]=(1440+Alarm_Date_Temp[0]*60+Alarm_Date_Temp[1])%60;
+	}
 	DS3231_WriteAlarm();
 }
 		
@@ -211,9 +238,9 @@ void KeyNumber_Set_Alarm()
 	else OLED_ShowSymbol(112,2,32,16);
 	OLED_ShowSymbol(112,0,7,16);
 	if(Alarm_Date[0]/10)OLED_ShowSymbol(16,4,Alarm_Date[0]/10+10,16);
-	OLED_ShowSymbol(32,4,Alarm_Date[0]%10+10,16);//时
+	OLED_ShowSymbol(32,4,Alarm_Date[0]%10+10,16);//ʱ
 	OLED_ShowSymbol(48,4,21,16);
-	OLED_ShowSymbol(64,4,Alarm_Date[1]/10+10,16);//分
+	OLED_ShowSymbol(64,4,Alarm_Date[1]/10+10,16);//ؖ
 	OLED_ShowSymbol(80,4,Alarm_Date[1]%10+10,16);
 	
 	OLED_ShowSymbol(0,6,24,16);
@@ -227,7 +254,7 @@ void KeyNumber_Set_Alarm()
 	if(Alarm_Set[0])OLED_ShowSymbol(112,6,31,16);
 	else OLED_ShowSymbol(112,6,32,16);
 	
-	switch(PWM_Mod)
+	switch(PWM_Mod)//5,10,15,20,30,40,60
 			{	
 				case 0: OLED_ShowNum(104,4,5,2,16);break;
 				case 1: OLED_ShowNum(104,4,10,2,16);break;
@@ -312,7 +339,7 @@ void KeyNumber_Set_Alarm()
 		{
 			if(Alarm_Choose_Flag>=0)
 			{if(Alarm_Date[0]/10)OLED_ShowSymbol(16,4,Alarm_Date[0]/10+10,16);
-			OLED_ShowSymbol(32,4,Alarm_Date[0]%10+10,16);}//时
+			OLED_ShowSymbol(32,4,Alarm_Date[0]%10+10,16);}//ʱ
 			else
 			OLED_ShowString(16,4,"    ",16);
 		}
@@ -320,7 +347,7 @@ void KeyNumber_Set_Alarm()
 			if(Alarm_Choose==8)
 		{
 			if(Alarm_Choose_Flag>=0)
-			{OLED_ShowSymbol(64,4,Alarm_Date[1]/10+10,16);//分
+			{OLED_ShowSymbol(64,4,Alarm_Date[1]/10+10,16);//ؖ
 			 OLED_ShowSymbol(80,4,Alarm_Date[1]%10+10,16);}
 			else 
 			OLED_ShowString(64,4,"    ",16);
@@ -406,17 +433,17 @@ void KeyNumber_Set()
 {
 	OLED_Clear(); 
 	
-	OLED_ShowSymbol(48,0,28,16);//设
-	OLED_ShowSymbol(64,0,29,16);//置
+	OLED_ShowSymbol(48,0,28,16);//ʨ
+	OLED_ShowSymbol(64,0,29,16);//׃
 	
-	OLED_ShowSymbol(0,3,22,16);//时
-	OLED_ShowSymbol(16,3,23,16);//间
+	OLED_ShowSymbol(0,3,22,16);//ʱ
+	OLED_ShowSymbol(16,3,23,16);//ݤ
 	
-	OLED_ShowSymbol(48,3,24,16);//闹
-	OLED_ShowSymbol(64,3,25,16);//钟
+	OLED_ShowSymbol(48,3,24,16);//Ŗ
+	OLED_ShowSymbol(64,3,25,16);//ד
 	
-	OLED_ShowSymbol(96,3,26,16);//其
-	OLED_ShowSymbol(112,3,27,16);//他
+	OLED_ShowSymbol(96,3,26,16);//Ǥ
+	OLED_ShowSymbol(112,3,27,16);//̻
 	
 	Wait_Key();
 	switch(KeyNum)
@@ -440,53 +467,28 @@ void KeyNumber_CTRL4()
 }
 
 
-void Show_Time()
-{//秒分时日月周年
-		OLED_ShowNum(0,2,TIME[6],2,16);
-		OLED_ShowSymbol(16,2,8,16);//年
-		
-		OLED_ShowNum(32,2,TIME[4],2,16);
-		OLED_ShowSymbol(48,2,9,16);//月
-		
-		OLED_ShowNum(64,2,TIME[3],2,16);
-		OLED_ShowSymbol(80,2,7,16);//日
-		
-
-		OLED_ShowSymbol(96,2,0,16);//周
-		OLED_ShowSymbol(112,2,TIME[5],16);
-	
-		if(TIME[2]/10)OLED_ShowSymbol(16,4,TIME[2]/10+10,16);
-		OLED_ShowSymbol(32,4,TIME[2]%10+10,16);//时
-		
-
-		OLED_ShowSymbol(48,4,21,16);
-		
-		OLED_ShowSymbol(64,4,TIME[1]/10+10,16);
-		OLED_ShowSymbol(80,4,TIME[1]%10+10,16);//分
-		
-		
-		OLED_ShowNum(98,5,TIME[0]/10,1,8);//秒
-		OLED_ShowNum(106 ,5,TIME[0]%10,1,8);
-		
-}
 void PWM_Run();
 
 void main()
 {
 	Timer0_Init();
-	//BlueTooth_Init();
+	BlueTooth_Init();
 	Int0_Init();
 	Int1_Init();
 	Timer_Init();
 	DS3231_Init();
-	OLED_Init();//初始化OLED
-//	OLED_ColorTurn(0);//0正常显示，1 反色显示
-  //OLED_DisplayTurn(0);//0正常显示 1 屏幕翻转显示
+	OLED_Init();//ԵʼۯOLED
+//	OLED_ColorTurn(0);//0ֽӣДʾì1 ״ɫДʾ
+  //OLED_DisplayTurn(0);//0ֽӣДʾ 1 ǁĻ׭תДʾ
 	
 			//DHT11_Read_RH_C();
 	//OLED_ShowString(8,0,"OK?",16);
 	GY302_Init();
 	//Timer2Init();
+	EX0=1;
+	PX1=1;
+	IPH=0x04;
+	Refresh_Flag=1;
 	while(1)
 	{
 		KeyNum=Get_KeyNumber();
@@ -499,183 +501,483 @@ void main()
 				case 3: KeyNumber_Set();break;
 				case 4: KeyNumber_CTRL4();break;
 			}
+			Refresh_Flag=1;
 		}
-		//OLED_ShowNum(0,0,Compare,2,16);
+
+		//OLED_ShowNum(0,4,c,1,16);
+		OLED_ShowNum(8,4,EX0,1,16);
 		OLED_ShowNum(0,0,DHT11_RH_C[1],2,16);
+		if(Refresh_Flag)
 		OLED_ShowChar(16,0,'.',16);
 		OLED_ShowNum(24,0,DHT11_RH_C[2],1,16);
 		OLED_ShowSymbol(32,0,20,16);
 		
 		OLED_ShowNum(52,0,DHT11_RH_C[0],2,16);
+		if(Refresh_Flag)
 		OLED_ShowChar(68,0,'%',16);
 		
 		OLED_ShowNum(80,0,lx,5,16);
+		
+		if(Refresh_Flag)
+		{
 		OLED_ShowChar(120,0,'l',8);
 		OLED_ShowChar(120,1,'x',8);
+		}
+		
 
-		Show_Time();
+		//īؖʱɕՂלŪ
+		if(TIME_Judge[6]!=TIME[6]||Refresh_Flag)
+		{
+		OLED_ShowNum(0,2,TIME[6],2,16);
+		TIME_Judge[6]=TIME[6];
+		}
+		if(Refresh_Flag)
+		OLED_ShowSymbol(16,2,8,16);//Ū
 		
+		if(TIME_Judge[4]!=TIME[4]||Refresh_Flag)
+		{
+		OLED_ShowNum(32,2,TIME[4],2,16);
+		TIME_Judge[4]=TIME[4];
+		}
+		if(Refresh_Flag)
+		OLED_ShowSymbol(48,2,9,16);//Ղ
 		
-		OLED_ShowSymbol(0,6,30,16);//闹钟标志
-		if(Alarm_Date[0]/10)OLED_ShowNum(16,6,Alarm_Date[0]/10,1,16);//闹钟
+		if(TIME_Judge[3]!=TIME[3]||Refresh_Flag)
+		{
+		OLED_ShowNum(64,2,TIME[3],2,16);
+		TIME_Judge[3]=TIME[3];
+		}
+		if(Refresh_Flag)
+		OLED_ShowSymbol(80,2,7,16);//ɕ
+		
+		if(Refresh_Flag)
+		OLED_ShowSymbol(96,2,0,16);//ל
+		if(TIME_Judge[5]!=TIME[5]||Refresh_Flag)
+		{
+		OLED_ShowSymbol(112,2,TIME[5],16);
+		TIME_Judge[5]=TIME[5];
+		}
+		
+		if(TIME_Judge[2]!=TIME[2]||Refresh_Flag)
+		{
+		if(TIME[2]/10)OLED_ShowSymbol(16,4,TIME[2]/10+10,16);
+		OLED_ShowSymbol(32,4,TIME[2]%10+10,16);//ʱ
+		TIME_Judge[2]=TIME[2];
+		}
+		
+		if(Refresh_Flag)
+		OLED_ShowSymbol(48,4,21,16);
+		
+		if(TIME_Judge[1]!=TIME[1]||Refresh_Flag)
+		{
+		OLED_ShowSymbol(64,4,TIME[1]/10+10,16);
+		OLED_ShowSymbol(80,4,TIME[1]%10+10,16);//ؖ
+		TIME_Judge[1]=TIME[1];
+		}
+		
+		if(TIME_Judge[0]!=TIME[0]||Refresh_Flag)
+		{
+		OLED_ShowNum(98,5,TIME[0]/10,1,8);//ī
+		OLED_ShowNum(106 ,5,TIME[0]%10,1,8);
+		TIME_Judge[0]=TIME[0];
+		}
+		
+		if(Refresh_Flag)
+		if(Alarm_Enable)OLED_ShowSymbol(0,6,30,16);//ŖדҪ־
+		
+		if(Alarm_Date_Judge[0]!=Alarm_Date[0]||Refresh_Flag)
+		{
+		if(Alarm_Date[0]/10)OLED_ShowNum(16,6,Alarm_Date[0]/10,1,16);//Ŗד
 		OLED_ShowNum(24,6,Alarm_Date[0],1,16);
+		Alarm_Date_Judge[0]=Alarm_Date[0];
+		}
+		
+		if(Refresh_Flag)
 		OLED_ShowChar(32,6,':',16);
+		
+		if(Alarm_Date_Judge[1]!=Alarm_Date[1]||Refresh_Flag)
+		{
 		OLED_ShowNum(40,6,Alarm_Date[1]/10,1,16);
 		OLED_ShowNum(48,6,Alarm_Date[1]%10,1,16);
+		Alarm_Date_Judge[1]=Alarm_Date[1];
+		}
 		
+		if(Alarm_Set_Judge[1]!=Alarm_Set[1]||Refresh_Flag)
+		{
 		if(Alarm_Set[1])OLED_ShowNum(64,7,1,1,8);
+		Alarm_Set_Judge[1]=Alarm_Set[1];
+		}
+		
+		if(Alarm_Set_Judge[2]!=Alarm_Set[2]||Refresh_Flag)
+		{
 		if(Alarm_Set[2])OLED_ShowNum(72,7,2,1,8);
+		Alarm_Set_Judge[2]=Alarm_Set[2];
+		}
+		
+		if(Alarm_Set_Judge[3]!=Alarm_Set[3]||Refresh_Flag)
+		{
 		if(Alarm_Set[3])OLED_ShowNum(80,7,3,1,8);
+		Alarm_Set_Judge[3]=Alarm_Set[3];
+		}
+		
+		if(Alarm_Set_Judge[4]!=Alarm_Set[4]||Refresh_Flag)
+		{
 		if(Alarm_Set[4])OLED_ShowNum(88,7,4,1,8);
-		if(Alarm_Set[5])OLED_ShowNum(96,7,5,1,8);
+		Alarm_Set_Judge[4]=Alarm_Set[4];
+		}
+		
+		if(Alarm_Set_Judge[5]!=Alarm_Set[5]||Refresh_Flag)
+		{
+			if(Alarm_Set[5])OLED_ShowNum(96,7,5,1,8);
+			Alarm_Set_Judge[5]=Alarm_Set[5];
+		}
+		
+		
+		if(Alarm_Set_Judge[1]!=Alarm_Set[1]||Refresh_Flag)
+		{
 		if(Alarm_Set[6])OLED_ShowNum(104,7,6,1,8);
+		Alarm_Set_Judge[1]=Alarm_Set[1];
+		}
+		
+		if(Alarm_Set_Judge[1]!=Alarm_Set[1]||Refresh_Flag)
+		{
 		if(Alarm_Set[7])OLED_ShowNum(112,7,7,1,8);
+		Alarm_Set_Judge[1]=Alarm_Set[1];
+		}
 		
-		if(BUF_Enable)OLED_ShowChar(120,7,'.',8);
-		//OLED_ShowNum(64,4,TIME[3],2,16);
-		//OLED_ShowNum(64,4,TIME[3],2,16);
-		
-		
-		//OLED_ShowString(112,0,"lx",16);
-	
-		
-		
-		
+		if(Alarm_Set_Judge[0]!=Alarm_Set[0]||Refresh_Flag)
+		{
+		if(Alarm_Set[0])OLED_ShowChar(120,6,'~'+1,16);
+		Alarm_Set_Judge[0]=Alarm_Set[0];
+		}
 
-//	OLED_ShowNum(0,2,TIME[0],3,16);
-//	OLED_ShowNum(36,2,TIME[1],3,16);
-//	OLED_ShowNum(72,2,1,3,16);
-
-//	OLED_ShowNum(0,4,TIME[3],3,16);
-//	OLED_ShowNum(36,4,TIME[4],3,16);
-//	OLED_ShowNum(72,4,TIME[5],3,16);
-
-	
-//	OLED_ShowNum(0,6,TIME[6],3,16);
-//	OLED_ShowNum(36,6,AlarmStatus[0],3,16);
-//	OLED_ShowNum(72,6,AlarmStatus[1],3,16);
-
-
-	DS3231_ReadTime();
-	//DHT11_Read_RH_C();
-	GY302_Read_lx();
-	if((!(TIME[1]&&TIME[0]))&&Alarm_Set[0])BUZ=0;
-		else BUZ=1;
-	if(PWM_Run_Flag){DS3231_WriteByte(DS3231_STATUS,0x00);PWM_Run_Flag=0;PWM_Run();}
+		Refresh_Flag=0;
+		if(BlueTooth_Refresh_Flag)
+		{
+			BlueTooth_Refresh_Flag=0;
+			TimeJudge();
+			Alarm_Judge();
+			DS3231_WriteTime();
+			WriteAlarm();
+			OLED_Clear();
+			Refresh_Flag=1;
+		}
+		
+		DS3231_ReadTime();
+		//DHT11_Read_RH_C();
+		GY302_Read_lx();
+		//if((!(TIME[1]||TIME[0]))&&Alarm_Set[0])BUZ=0;
+		if((!TIME[0])&&Alarm_Set[0])BUZ=0;
+			else BUZ=1;
+		if(Alarm_Reset_Flag){Alarm_Reset_Flag=0;DS3231_WriteByte(DS3231_STATUS,0x00)};
+		if(PWM_Run_Flag)
+		{
+			OLED_DrawBMP(2);
+			//DS3231_WriteByte(DS3231_STATUS,0x00);
+			PWM_Run();
+			OLED_Clear();
+			Refresh_Flag=1;
+			PWM_Run_Flag=0;
+		}
 	}
 }
 
 
 
-#define CMD0 1
-#define CMD1 2
-#define CMD2 3
-#define CMD3 4
-#define CMD4 5
-#define CMD_OVER 9
-
-unsigned char UART_RX_BUF[3];
-//TIME[7] = {0, 0, 0x16, 0x1C, 0x06, 0x01, 0x17};//0秒1分2时3日4月5周6年
-void BlueTooth_CMD0()
+#define CMD_Get						0x01
+#define CMD_Switch				0x02
+#define CMD_Set						0x03
+#define CMD_AlarmReset 		0x04
+#define CMD_OVER 					0xFF
+#define LF 0x0A
+unsigned char UART_RX_BUF[4];
+//TIME[7] = {0, 0, 0x16, 0x1C, 0x06, 0x01, 0x17};//0ī1ؖ2ʱ3ɕ4Ղ5ל6Ū
+void BlueTooth_CMD_Get()
 {
+	unsigned char i;
+	if(UART_RX_BUF[1]==1)
+	{
 	BlueTooth_SendString("当前时间为：");
+	BlueTooth_SendByte(LF);
 	BlueTooth_SendString("20");
-	BlueTooth_SendByte(TIME[6]);
+	BlueTooth_SendNum(TIME[6]);
 	BlueTooth_SendString("年");
-	BlueTooth_SendByte(TIME[4]);
+	BlueTooth_SendNum(TIME[4]);
 	BlueTooth_SendString("月");
-	BlueTooth_SendByte(TIME[3]);
+	BlueTooth_SendNum(TIME[3]);
 	BlueTooth_SendString("日");
 	
+	BlueTooth_SendString("周");
+	switch(TIME[5])
+			{	
+				case 1: BlueTooth_SendString("一");break;
+				case 2: BlueTooth_SendString("二");break;
+				case 3: BlueTooth_SendString("三");break;
+				case 4: BlueTooth_SendString("四");break;
+				case 5: BlueTooth_SendString("五");break;
+				case 6: BlueTooth_SendString("六");break;
+				case 7: BlueTooth_SendString("日");break;
+			}
+			
 	BlueTooth_SendString(" ");
-	BlueTooth_SendByte(TIME[2]);
+	BlueTooth_SendNum(TIME[2]);
 	BlueTooth_SendString(":");
-	BlueTooth_SendByte(TIME[1]);
+	BlueTooth_SendNum(TIME[1]);
+	 
 	BlueTooth_SendString(" ");
-	
-	BlueTooth_SendByte(TIME[0]);
-}
-
-void BlueTooth_CMD1()
-{
-	BlueTooth_SendString("当前温度：");
-	BlueTooth_SendByte(DHT11_RH_C[1]);
+	BlueTooth_SendNum(TIME[0]/10);
+	BlueTooth_SendNum(TIME[0]%10);
+	BlueTooth_SendString("s");
+	BlueTooth_SendByte(LF);
+	}
+	else if(UART_RX_BUF[1]==2)
+	{
+	BlueTooth_SendString("当前温度:");
+	BlueTooth_SendNum(DHT11_RH_C[1]);
 	BlueTooth_SendString(".");
-	BlueTooth_SendByte(DHT11_RH_C[2]);
-	BlueTooth_SendString("℃");
-	BlueTooth_SendString("湿度");
-	BlueTooth_SendByte(DHT11_RH_C[0]);
-	BlueTooth_SendString("RH");
-}
-
-void BlueTooth_CMD2()
-{
+	BlueTooth_SendNum(DHT11_RH_C[2]);
+	BlueTooth_SendString("℃ ");
+	BlueTooth_SendString("湿度:");
+	BlueTooth_SendNum(DHT11_RH_C[0]);
+	BlueTooth_SendString("RH ");
+	BlueTooth_SendString("光照:");
+	BlueTooth_SendNum(lx);
+	BlueTooth_SendString("lx");
+	BlueTooth_SendByte(LF);
+	}
+	else if(UART_RX_BUF[1]==3)
+	{
 	BlueTooth_SendString("当前闹钟信息：");
-	BlueTooth_SendString("时间：");
-	BlueTooth_SendByte(Alarm_Date[0]);
-	BlueTooth_SendString(":");
-	BlueTooth_SendByte(Alarm_Date[1]);
-
+	BlueTooth_SendByte(LF);
+	BlueTooth_SendString("闹钟:");
+	if(Alarm_Enable)BlueTooth_SendString("开 ");
+		else BlueTooth_SendString("关 ");
 	
+	
+	BlueTooth_SendString("整点报时:");
+	if(Alarm_Set[0])BlueTooth_SendString("开");
+		else BlueTooth_SendString("关");
+	
+
+	BlueTooth_SendByte(LF);
+	BlueTooth_SendString("设置时间：");
+	BlueTooth_SendNum(Alarm_Date[0]);
+	BlueTooth_SendString(":");
+	BlueTooth_SendNum(Alarm_Date[1]/10);
+	BlueTooth_SendNum(Alarm_Date[1]%10);
+	
+	BlueTooth_SendByte(LF);
+	BlueTooth_SendString("开始时间：");
+	BlueTooth_SendNum(Alarm_Date_Temp[0]);
+	BlueTooth_SendString(":");
+	BlueTooth_SendNum(Alarm_Date_Temp[1]/10);
+	BlueTooth_SendNum(Alarm_Date_Temp[1]%10);
+	
+	BlueTooth_SendByte(LF);
+	BlueTooth_SendString("         唤醒周期：");
+	switch(PWM_Mod)
+		{	
+			case 0: BlueTooth_SendString("5");break;
+			case 1: BlueTooth_SendString("10");break;
+			case 2: BlueTooth_SendString("15");break;
+			case 3: BlueTooth_SendString("20");break;
+			case 4: BlueTooth_SendString("30");break;
+			case 5: BlueTooth_SendString("40");break;
+			case 6: BlueTooth_SendString("60");break;
+		}
+	BlueTooth_SendString("分钟");
+		
+	BlueTooth_SendByte(LF);
+	BlueTooth_SendString("闹钟周期:周");
+	for(i=1;i<=7;i++)
+	{
+		if(Alarm_Set[i])
+		{switch(i)
+			{	
+				case 1: BlueTooth_SendString("一 ");break;
+				case 2: BlueTooth_SendString("二 ");break;
+				case 3: BlueTooth_SendString("三 ");break;
+				case 4: BlueTooth_SendString("四 ");break;
+				case 5: BlueTooth_SendString("五 ");break;
+				case 6: BlueTooth_SendString("六 ");break;
+				case 7: BlueTooth_SendString("日 ");break;
+			}
+		}
+	}
+	BlueTooth_SendByte(LF);
+	}
+	else BlueTooth_SendString("未知指令");
 }
 
-void BlueTooth_CMD3()
+void BlueTooth_CMD_Switch()
+{
+	switch(UART_RX_BUF[1])
+			{	
+				case 1: Alarm_Set[1]=UART_RX_BUF[2];
+				BlueTooth_SendString("星期一闹钟已");
+				if(Alarm_Enable)BlueTooth_SendString("开启");
+				else BlueTooth_SendString("关闭");
+				BlueTooth_SendByte(LF);break;
+				case 2: Alarm_Set[2]=UART_RX_BUF[2];
+				BlueTooth_SendString("星期二闹钟已");
+				if(Alarm_Enable)BlueTooth_SendString("开启");
+				else BlueTooth_SendString("关闭");
+				BlueTooth_SendByte(LF);break;
+				case 3: Alarm_Set[3]=UART_RX_BUF[2];
+				BlueTooth_SendString("星期三闹钟已");
+				if(Alarm_Enable)BlueTooth_SendString("开启");
+				else BlueTooth_SendString("关闭");
+				BlueTooth_SendByte(LF);break;
+				case 4: Alarm_Set[4]=UART_RX_BUF[2];
+				BlueTooth_SendString("星期四闹钟已");
+				if(Alarm_Enable)BlueTooth_SendString("开启");
+				else BlueTooth_SendString("关闭");
+				BlueTooth_SendByte(LF);break;
+				case 5: Alarm_Set[5]=UART_RX_BUF[2];
+				BlueTooth_SendString("星期五闹钟已");
+				if(Alarm_Enable)BlueTooth_SendString("开启");
+				else BlueTooth_SendString("关闭");
+				BlueTooth_SendByte(LF);break;
+				case 6: Alarm_Set[6]=UART_RX_BUF[2];
+				BlueTooth_SendString("星期六闹钟已");
+				if(Alarm_Enable)BlueTooth_SendString("开启");
+				else BlueTooth_SendString("关闭");
+				BlueTooth_SendByte(LF);break;
+				case 7: Alarm_Set[7]=UART_RX_BUF[2];
+				BlueTooth_SendString("星期日闹钟已");
+				if(Alarm_Enable)BlueTooth_SendString("开启");
+				else BlueTooth_SendString("关闭");
+				BlueTooth_SendByte(LF);break;
+				
+				case 8: Alarm_Enable=UART_RX_BUF[2];
+				BlueTooth_SendString("闹钟已");
+				if(Alarm_Enable)BlueTooth_SendString("开启");
+				else BlueTooth_SendString("关闭");
+				BlueTooth_SendByte(LF);break;
+				case 9: Alarm_Set[0]=UART_RX_BUF[2];
+				BlueTooth_SendString("整点报时已");
+				if(Alarm_Set[0])BlueTooth_SendString("开启");
+				else BlueTooth_SendString("关闭");
+				BlueTooth_SendByte(LF);break;
+				default: BlueTooth_SendString("未知指令");break;
+			}
+			BlueTooth_Refresh_Flag=1;
+}
+   
+void BlueTooth_CMD_Set()
+{
+	if(UART_RX_BUF[1]==1)
+	{
+		TIME[2]=(UART_RX_BUF[2]>>4)*10+(UART_RX_BUF[2]&0x0F);
+		TIME[1]=(UART_RX_BUF[3]>>4)*10+(UART_RX_BUF[3]&0x0F);
+		BlueTooth_SendString("时间 ");
+		BlueTooth_SendNum(TIME[2]);
+		BlueTooth_SendString(":");
+		BlueTooth_SendNum(TIME[1]/10);
+		BlueTooth_SendNum(TIME[1]%10);
+		BlueTooth_SendString(" 已设置完成");
+		BlueTooth_SendByte(LF);
+	}
+	else if(UART_RX_BUF[1]==2)
+	{
+		Alarm_Date[0]=(UART_RX_BUF[2]>>4)*10+(UART_RX_BUF[2]&0x0F);
+		Alarm_Date[1]=(UART_RX_BUF[3]>>4)*10+(UART_RX_BUF[3]&0x0F);
+		BlueTooth_SendString("闹钟 ");
+		BlueTooth_SendNum(Alarm_Date[0]);
+		BlueTooth_SendString(":");
+		BlueTooth_SendNum(Alarm_Date[1]/10);
+		BlueTooth_SendNum(Alarm_Date[1]%10);
+		BlueTooth_SendString(" 已设置完成");
+		BlueTooth_SendByte(LF);
+		BlueTooth_SendString("唤醒周期：");
+		switch(PWM_Mod)
+			{	
+				case 0: BlueTooth_SendString("5");break;
+				case 1: BlueTooth_SendString("10");break;
+				case 2: BlueTooth_SendString("15");break;
+				case 3: BlueTooth_SendString("20");break;
+				case 4: BlueTooth_SendString("30");break;
+				case 5: BlueTooth_SendString("40");break;
+				case 6: BlueTooth_SendString("60");break;
+			}
+		BlueTooth_SendString("分钟");
+		BlueTooth_SendByte(LF);
+	}
+	else if(UART_RX_BUF[1]==3)
+	{
+				switch(UART_RX_BUF[2])
+			{	
+				case 0: PWM_Mod=0;break;
+				case 1: PWM_Mod=1;break;
+				case 2: PWM_Mod=2;break;
+				case 3: PWM_Mod=3;break;
+				case 4: PWM_Mod=4;break;
+				case 5: PWM_Mod=5;break;
+				case 6: PWM_Mod=6;break;
+			}
+		BlueTooth_SendString("唤醒周期 ");
+		switch(PWM_Mod)
+			{	
+				case 0: BlueTooth_SendString("5");break;
+				case 1: BlueTooth_SendString("10");break;
+				case 2: BlueTooth_SendString("15");break;
+				case 3: BlueTooth_SendString("20");break;
+				case 4: BlueTooth_SendString("30");break;
+				case 5: BlueTooth_SendString("40");break;
+				case 6: BlueTooth_SendString("60");break;
+			}
+			
+		BlueTooth_SendString("分钟 已设置完成");
+		BlueTooth_SendByte(LF);
+	}
+	else BlueTooth_SendString("未知指令");
+	
+	BlueTooth_Refresh_Flag=1;
+}
+
+void BlueTooth_CMD_AlarmReset()
 {
 
 }
 
-void BlueTooth_CMD4()
-{
-
-}
 
 void BlueTooth_CMD_Default()
 {
-
+	BlueTooth_SendString("未知指令");
 }
+
 
 void UART_Routine() interrupt 4
 {
 	static unsigned char BUF_NUM=0;
 	unsigned char Temp;
-	//OLED_ShowString(20,4,"UART",16);
 	if(RI==1)
 	{
 		RI=0;
 		Temp=SBUF;
-		//OLED_ShowString(20,4,"1",16);
 		if(Temp==CMD_OVER)
 		{
 				switch(UART_RX_BUF[0])
 			{	
-				case CMD0: BlueTooth_CMD0();break;
-				case CMD1: BlueTooth_CMD1();break;
-				case CMD2: BlueTooth_CMD2();break;
-				case CMD3: BlueTooth_CMD3();break;
-				case CMD4: BlueTooth_CMD4();break;
+				case CMD_Get: BlueTooth_CMD_Get();break;
+				case CMD_Switch: BlueTooth_CMD_Switch();break;
+				case CMD_Set: BlueTooth_CMD_Set();break;
+				case CMD_AlarmReset: BlueTooth_CMD_AlarmReset();break;
 				default: BlueTooth_CMD_Default();break;
 			}
 			BUF_NUM=0;
-			//OLED_ShowString(20,4,"2",16);
 		}
 		else
 		{
 			UART_RX_BUF[BUF_NUM++]=Temp;
-			BlueTooth_SendByte(Temp);
-			BUF_NUM%=3;
-			//OLED_ShowString(20,4,"3",16);
+			BUF_NUM%=4;
 		}
-		
 	}
-
 }
 
 void Timer0_Routine() interrupt 1
 {
-	
-	static unsigned int Key_Counter=0,Time_Choose_Counter=0;
-		//Time_Counter=0;
-	
+	static unsigned int Key_Counter=0;
 	TL0 = 0x66;
 	TH0 = 0xFC;
 	Key_Counter++;
@@ -683,14 +985,6 @@ void Timer0_Routine() interrupt 1
 	{
 		Key_Counter=0;
 		Key_Entry();
-		
-	}
-	
-	Time_Choose_Counter++;
-	if(Time_Choose_Counter>=100)
-	{
-	Time_Choose_Counter=0;
-
 	}
 }
 
@@ -698,17 +992,12 @@ void Timer0_Routine() interrupt 1
 void PWM_Run()
 {
 	RELAY=0;
-	ET2=1;
 	PWM_Timer=0;PWM_Timer_Sec=0,PWM_Timer_Min=0;
-	
-	EX1=1;
-	IE1=0;
-	
-	
+	Int1_Flag=0;
+	IE1=0;EX1=1;
 	EX0=0;
-	ET0=0;
-	
-	while(!IE1)
+	ET0=0;ET2=1;
+	while(!Int1_Flag)
 	{
 		switch(PWM_Mod)
 			{	
@@ -722,38 +1011,31 @@ void PWM_Run()
 			}//5,10,15,20,30,40,60
 
 	}
-	EX0=1;
-	ET0=1;
-	
+	ET2=0;ET0=1;
+	IE0=0;EX0=1;
 	EX1=0;
-	
-	ET2=0;
+
 	RELAY=1;
 }
 #define DS3231_STATUS 0x0F
 
 void Int0_Routine(void) interrupt 0
 {
-	
 	if(Alarm_Enable&&Alarm_Set[TIME[5]])
-	{
+	{	
 		PWM_Run_Flag=1;	
-
 	}
-
+	Alarm_Reset_Flag=1;
 }
 
 void Int1_Routine(void) interrupt 2
 {
-	//ET2=0;
+	Int1_Flag=1;
 }
 
 
 void Timer2_Routine(void) interrupt 5
 {
-	
-	f=1;
-
 	if(PWM_Couter<PWM_Compare)
 	{
 		P0_1=1;
