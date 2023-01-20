@@ -22,6 +22,7 @@ unsigned char Refresh_Flag=0;
 unsigned char BlueTooth_Refresh_Flag=0;
 unsigned char Alarm_Reset_Flag=0;
 unsigned char Int1_Flag=0;
+unsigned char BUZ_Flag=0;
 
 //unsigned int PWM_Mod=0;
 
@@ -39,7 +40,7 @@ sbit RELAY=P2^0;
 char TIME_Judge[7] = {0xFF, 0xFF,0xFF, 0xFF, 0xFF, 0xFF, 0xFF};//īؖʱɕՂלŪ
 unsigned char Alarm_Set_Judge[8]={0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
 char Alarm_Date_Judge[2]={0xFF,0xFF};
-
+ char A=-1;
 void Wait_Key()
 {
 		KeyNum=Get_KeyNumber();
@@ -48,11 +49,12 @@ void Wait_Key()
 
 void KeyNumber_CTRL1()
 {
-	
-	EX0=1;
+	EA=0;
+	A=DHT11_Read_RH_C();
 	//DS3231_Init();
 	//Timer2_Init();
 	//ET0=0;
+	EA=1;
 }
 
 void KeyNumber_CTRL2()
@@ -460,10 +462,8 @@ void KeyNumber_Set()
 
 void KeyNumber_CTRL4()
 {
-	PWM_Compare--;
-	
-	//GY302_SendCMD(4);
-	//DS3231_WriteByte(DS3231_STATUS,0x08);
+DHT11_Read_RH_C();
+
 }
 
 
@@ -504,8 +504,8 @@ void main()
 			Refresh_Flag=1;
 		}
 
-		//OLED_ShowNum(0,4,c,1,16);
-		OLED_ShowNum(8,4,EX0,1,16);
+		//OLED_ShowNum(0,4,A,1,16);
+		//OLED_ShowNum(8,4,EX0,1,16);
 		OLED_ShowNum(0,0,DHT11_RH_C[1],2,16);
 		if(Refresh_Flag)
 		OLED_ShowChar(16,0,'.',16);
@@ -664,14 +664,13 @@ void main()
 		}
 		
 		DS3231_ReadTime();
-		//DHT11_Read_RH_C();
+		
 		GY302_Read_lx();
 		//if((!(TIME[1]||TIME[0]))&&Alarm_Set[0])BUZ=0;
-		if((!TIME[0])&&Alarm_Set[0])BUZ=0;
-			else BUZ=1;
-		if(Alarm_Reset_Flag){Alarm_Reset_Flag=0;DS3231_WriteByte(DS3231_STATUS,0x00)};
+		if(Alarm_Reset_Flag){Alarm_Reset_Flag=0;DS3231_WriteByte(DS3231_STATUS,0x00);};
 		if(PWM_Run_Flag)
 		{
+			BUZ=1;
 			OLED_DrawBMP(2);
 			//DS3231_WriteByte(DS3231_STATUS,0x00);
 			PWM_Run();
@@ -691,7 +690,7 @@ void main()
 #define CMD_OVER 					0xFF
 #define LF 0x0A
 unsigned char UART_RX_BUF[4];
-//TIME[7] = {0, 0, 0x16, 0x1C, 0x06, 0x01, 0x17};//0ī1ؖ2ʱ3ɕ4Ղ5ל6Ū
+
 void BlueTooth_CMD_Get()
 {
 	unsigned char i;
@@ -937,7 +936,7 @@ void BlueTooth_CMD_Set()
 
 void BlueTooth_CMD_AlarmReset()
 {
-
+	Int1_Flag=1;
 }
 
 
@@ -977,7 +976,7 @@ void UART_Routine() interrupt 4
 
 void Timer0_Routine() interrupt 1
 {
-	static unsigned int Key_Counter=0;
+	static unsigned int Key_Counter=0,BUZ_Counter=0;
 	TL0 = 0x66;
 	TH0 = 0xFC;
 	Key_Counter++;
@@ -986,6 +985,10 @@ void Timer0_Routine() interrupt 1
 		Key_Counter=0;
 		Key_Entry();
 	}
+	if(((!TIME[0])&&Alarm_Set[0])&&BUZ_Flag){BUZ_Flag=0;BUZ_Counter=0;BUZ=0;}
+	if(!BUZ_Flag)BUZ_Counter++;
+	if(BUZ_Counter>=100)BUZ=1;
+	if(BUZ_Counter>=5000)BUZ_Flag=1;
 }
 
 
@@ -999,6 +1002,8 @@ void PWM_Run()
 	ET0=0;ET2=1;
 	while(!Int1_Flag)
 	{
+		if(PWM_Timer_Min)
+		{
 		switch(PWM_Mod)
 			{	
 				case 0: PWM_Compare=PWM_Timer_Min*10;break;
@@ -1009,7 +1014,7 @@ void PWM_Run()
 				case 5: PWM_Compare=PWM_Timer_Min*5/4;break;
 				case 6: PWM_Compare=PWM_Timer_Min*5/6;break;
 			}//5,10,15,20,30,40,60
-
+		}else PWM_Compare=1;
 	}
 	ET2=0;ET0=1;
 	IE0=0;EX0=1;
