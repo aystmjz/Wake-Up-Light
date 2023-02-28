@@ -8,9 +8,12 @@
 #include "DS3231.h"
 #include "I2C.h"
 #include "DHT11.h"
-#include "GY302.h"
+//#include "GY302.h"
 #include "STC89C5xRC.h"
-	 
+#include "AT24C02.h"
+#include "Music.h"
+#define Music_MAX_NUM  2
+#define Music_Volume	2
 #define DS3231_STATUS 0x0F
 unsigned char KeyNum;
 #include <REGX52.H>
@@ -19,11 +22,10 @@ unsigned int PWM_Timer=0,PWM_Compare=1;
 unsigned char PWM_Timer_Sec=0,PWM_Timer_Min=0;
 unsigned char PWM_Run_Flag=0;
 unsigned char Refresh_Flag=0;
-unsigned char BlueTooth_Refresh_Flag=0;
-unsigned char Alarm_Reset_Flag=0;
 unsigned char Int1_Flag=0;
 unsigned char BUZ_Flag=0;
-
+unsigned int lx=0;
+unsigned char Music_NUM=1;
 //unsigned int PWM_Mod=0;
 
 //unsigned char Alarm_Enable;
@@ -40,26 +42,33 @@ sbit RELAY=P2^0;
 char TIME_Judge[7] = {0xFF, 0xFF,0xFF, 0xFF, 0xFF, 0xFF, 0xFF};//īؖʱɕՂלŪ
 unsigned char Alarm_Set_Judge[8]={0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
 char Alarm_Date_Judge[2]={0xFF,0xFF};
- char A=-1;
+unsigned char A=0x00;
+unsigned char BlueTooth_Refresh_Flag;
+unsigned char Alarm_Reset_Flag;
+unsigned char Voice_Flag_AZ=0;
+unsigned char Voice_Flag_AZ_Go=0;
+unsigned char Music_Time_Flag=0;
 void Wait_Key()
 {
 		KeyNum=Get_KeyNumber();
 		while(!KeyNum){KeyNum=Get_KeyNumber();}
 }
-
+void Music_Time();
 void KeyNumber_CTRL1()
 {
-	EA=0;
-	A=DHT11_Read_RH_C();
-	//DS3231_Init();
-	//Timer2_Init();
-	//ET0=0;
-	EA=1;
+	
+	//Music_CMD(2,2,Play_Folder);
+	//Music_CMD(2,3,Play_Folder);
+	//OLED_Clear();
+Music_Time();
+//Music_CMD(0,1,Volume);
+//Music_CMD(0,2,Play_Music);
 }
 
 void KeyNumber_CTRL2()
 {
-EX1=0;EX0=0;
+Music_CMD(0,1,Volume);
+Music_CMD(0,1,Play_Music);
 }
 void Show_Time();
 
@@ -429,7 +438,14 @@ void KeyNumber_Set_Alarm()
 }
 void KeyNumber_Set_Other()
 {
-	
+	Wait_Key();
+	switch(KeyNum)
+			{	
+				case 1: Music_CMD(1,1,Play_Folder);break;
+				case 2: Music_CMD(1,2,Play_Folder);break;
+				case 3: OLED_Clear();break;
+				case 4: OLED_Clear();break;
+			}
 }
 void KeyNumber_Set()
 {
@@ -462,12 +478,222 @@ void KeyNumber_Set()
 
 void KeyNumber_CTRL4()
 {
+Music_CMD(0,0,Sotp);
+UART_SendByte(0xFE);
+UART_SendByte(0xFE);
+UART_SendByte(0xFE);                                
+		
 DHT11_Read_RH_C();
-
 }
 
 
 void PWM_Run();
+
+unsigned char Voice_Flag=0,Voice_NUM=0,Voice_BUF[10];
+
+void Voice_Disp_Sentence()
+{
+	unsigned char NUM;
+	switch(Voice_BUF[Voice_NUM])
+			{	
+				case 0x01: NUM=1;break;
+				case 0x10: NUM=2;break;
+				case 0x11: NUM=3;break;
+				case 0x12: NUM=4;break;
+				case 0xEF: NUM=5;break;
+				case 0xE0: NUM=6;break;
+				case 0xE2: NUM=7;break;
+				case 0x21: NUM=8;break;
+				case 0x22: NUM=9;break;
+				case 0x23: NUM=10;break;
+				case 0x24: NUM=11;break;
+				case 0x25: NUM=12;break;
+				case 0x26: NUM=13;break;
+				case 0x27: NUM=14;break;
+				case 0xE3: NUM=15;break;
+				case 0x35: NUM=16;break;
+				case 0x30: NUM=17;break;
+				case 0x31: NUM=18;break;
+				case 0x32: NUM=19;break;
+				case 0x33: NUM=20;break;
+				case 0x34: NUM=21;break;
+				case 0x36: NUM=22;break;
+				case 0x41: NUM=23;break;
+				case 0x42: NUM=24;break;
+				case 0x43: NUM=25;break;
+				case 0x44: NUM=26;break;
+				case 0x45: NUM=27;break;
+				case 0x46: NUM=28;break;
+				case 0x47: NUM=29;break;
+				case 0x48: NUM=30;break;
+				case 0x49: NUM=31;break;
+				case 0x40: NUM=32;break;
+				case 0x51: NUM=33;break;
+				case 0x52: NUM=34;break;
+				case 0x61: NUM=35;break;
+				case 0x62: NUM=36;break;
+				case 0x63: NUM=37;break;
+				case 0x64: NUM=38;break;
+				case 0x65: NUM=39;break;
+				case 0x66: NUM=40;break;
+			}
+	OLED_ShowSentence(Voice_NUM-1,NUM);
+}
+
+void Voice_CMD()
+{
+	if(Voice_BUF[Voice_NUM]==0xE0)
+	{
+		if(Voice_BUF[1]==0x11)
+		{
+			if(Voice_BUF[2]==0xE0)
+			{
+				Alarm_Enable=1;
+			}
+			else
+			{
+					switch(Voice_BUF[2])
+				{	
+					case 0x21: Alarm_Set[1]=1;break;
+					case 0x22: Alarm_Set[2]=1;break;
+					case 0x23: Alarm_Set[3]=1;break;
+					case 0x24: Alarm_Set[4]=1;break;
+					case 0x25: Alarm_Set[5]=1;break;
+					case 0x26: Alarm_Set[6]=1;break;
+					case 0x27: Alarm_Set[7]=1;break;
+				}
+			}
+			
+		}
+		else if(Voice_BUF[1]==0x10)
+		{
+			if(Voice_BUF[2]==0xE0)
+			{
+				Alarm_Enable=0;
+			}
+			else
+			{
+					switch(Voice_BUF[2])
+				{	
+					case 0x21: Alarm_Set[1]=0;break;
+					case 0x22: Alarm_Set[2]=0;break;
+					case 0x23: Alarm_Set[3]=0;break;
+					case 0x24: Alarm_Set[4]=0;break;
+					case 0x25: Alarm_Set[5]=0;break;
+					case 0x26: Alarm_Set[6]=0;break;
+					case 0x27: Alarm_Set[7]=0;break;
+				}
+			}
+		}
+		else if(Voice_BUF[1]==0x12)
+		{
+			if(Voice_BUF[3]==0xE0)
+			{
+				switch(Voice_BUF[2])
+				{	
+					case 0x41: Alarm_Date[0]=1;break;
+					case 0x42: Alarm_Date[0]=2;break;
+					case 0x43: Alarm_Date[0]=3;break;
+					case 0x44: Alarm_Date[0]=4;break;
+					case 0x45: Alarm_Date[0]=5;break;
+					case 0x46: Alarm_Date[0]=6;break;
+					case 0x47: Alarm_Date[0]=7;break;
+					case 0x48: Alarm_Date[0]=8;break;
+					case 0x49: Alarm_Date[0]=9;break;
+					case 0x40: Alarm_Date[0]=10;break;
+					case 0x51: Alarm_Date[0]=11;break;
+					case 0x52: Alarm_Date[0]=0;break;
+				}
+				Alarm_Date[1]=0;
+			}
+			else
+			{
+				switch(Voice_BUF[2])
+				{	
+					case 0x41: Alarm_Date[0]=1;break;
+					case 0x42: Alarm_Date[0]=2;break;
+					case 0x43: Alarm_Date[0]=3;break;
+					case 0x44: Alarm_Date[0]=4;break;
+					case 0x45: Alarm_Date[0]=5;break;
+					case 0x46: Alarm_Date[0]=6;break;
+					case 0x47: Alarm_Date[0]=7;break;
+					case 0x48: Alarm_Date[0]=8;break;
+					case 0x49: Alarm_Date[0]=9;break;
+					case 0x40: Alarm_Date[0]=10;break;
+					case 0x51: Alarm_Date[0]=11;break;
+					case 0x52: Alarm_Date[0]=0;break;
+				}
+				switch(Voice_BUF[3])
+				{	
+					case 0x61: Alarm_Date[1]=10;break;
+					case 0x62: Alarm_Date[1]=20;break;
+					case 0x63: Alarm_Date[1]=30;break;
+					case 0x64: Alarm_Date[1]=40;break;
+					case 0x65: Alarm_Date[1]=50;break;
+					case 0x66: Alarm_Date[1]=0;break;
+				}
+			}
+		}
+		Music_CMD(2,2,Play_Folder);
+	}
+	else if(Voice_BUF[Voice_NUM]==0xE2)
+	{
+		if(Voice_BUF[1]==0x11)
+		{
+			Alarm_Set[0]=1;
+		}
+		else if(Voice_BUF[1]==0x10)
+		{
+			Alarm_Set[0]=0;
+		}
+		Music_CMD(2,3,Play_Folder);
+	}
+	else if(Voice_BUF[Voice_NUM]==0xE3)
+	{
+		switch(Voice_BUF[2])
+			{	
+				case 0x35: PWM_Mod=0;break;
+				case 0x30: PWM_Mod=1;break;
+				case 0x31: PWM_Mod=2;break;
+				case 0x32: PWM_Mod=3;break;
+				case 0x33: PWM_Mod=4;break;
+				case 0x34: PWM_Mod=5;break;
+				case 0x36: PWM_Mod=6;break;
+			}
+			Music_CMD(2,7,Play_Folder);
+	}
+	
+}
+
+void Voice_Disp()
+{
+	OLED_Clear();
+	while(Voice_BUF[Voice_NUM]<0xDF)
+	{
+		if(!Voice_NUM)
+			{
+				Voice_Flag=0;
+				OLED_Clear();
+				Refresh_Flag=1;
+				Voice_Flag_AZ=0;
+				return;
+			}
+			else
+			{
+				Voice_Disp_Sentence();
+			}
+	}
+	Voice_Disp_Sentence();
+	Voice_CMD();
+	Alarm_Judge();
+	WriteAlarm();
+	OLED_Clear();
+	Refresh_Flag=1;
+	Voice_Flag_AZ=0;
+	Voice_Flag=0;
+	Voice_NUM=0;
+}
+
 
 void main()
 {
@@ -483,12 +709,13 @@ void main()
 	
 			//DHT11_Read_RH_C();
 	//OLED_ShowString(8,0,"OK?",16);
-	GY302_Init();
+	//GY302_Init();
 	//Timer2Init();
 	EX0=1;
 	PX1=1;
 	IPH=0x04;
 	Refresh_Flag=1;
+	Music_CMD(0,Music_Volume,Volume);
 	while(1)
 	{
 		KeyNum=Get_KeyNumber();
@@ -503,8 +730,10 @@ void main()
 			}
 			Refresh_Flag=1;
 		}
-
-		//OLED_ShowNum(0,4,A,1,16);
+//OLED_ShowNum(0,4,A,2,16);
+		
+//OLED_ShowNum(80,0,AT24C02_ReadByte(1),5,16);
+		//Alarm_Set[TIME[5]]
 		//OLED_ShowNum(8,4,EX0,1,16);
 		OLED_ShowNum(0,0,DHT11_RH_C[1],2,16);
 		if(Refresh_Flag)
@@ -650,8 +879,24 @@ void main()
 		if(Alarm_Set[0])OLED_ShowChar(120,6,'~'+1,16);
 		Alarm_Set_Judge[0]=Alarm_Set[0];
 		}
-
 		Refresh_Flag=0;
+		if(Voice_Flag)
+		{
+			Voice_Disp();
+		}
+
+		if(Music_Time_Flag)
+		{
+			Music_Time();
+			Music_Time_Flag=0;
+		}
+		if(Voice_Flag_AZ_Go)
+		{
+			Music_CMD(0,Music_Volume,Volume);
+			Music_CMD(2,1,Play_Folder);
+			Voice_Flag_AZ_Go=0;
+		}
+		
 		if(BlueTooth_Refresh_Flag)
 		{
 			BlueTooth_Refresh_Flag=0;
@@ -664,8 +909,8 @@ void main()
 		}
 		
 		DS3231_ReadTime();
-		
-		GY302_Read_lx();
+		//AT24C02_WriteByte(1,A);
+		//GY302_Read_lx();
 		//if((!(TIME[1]||TIME[0]))&&Alarm_Set[0])BUZ=0;
 		if(Alarm_Reset_Flag){Alarm_Reset_Flag=0;DS3231_WriteByte(DS3231_STATUS,0x00);};
 		if(PWM_Run_Flag)
@@ -740,7 +985,7 @@ void BlueTooth_CMD_Get()
 	BlueTooth_SendNum(DHT11_RH_C[0]);
 	BlueTooth_SendString("RH ");
 	BlueTooth_SendString("光照:");
-	BlueTooth_SendNum(lx);
+//	BlueTooth_SendNum(lx);
 	BlueTooth_SendString("lx");
 	BlueTooth_SendByte(LF);
 	}
@@ -946,6 +1191,266 @@ void BlueTooth_CMD_Default()
 }
 
 
+
+
+unsigned char UART_State=0;
+
+
+//TIME[7] = {0, 0, 0x16, 0x1C, 0x06, 0x01, 0x17};//秒分时日月周年
+unsigned char Music_Time_Wait_Flag=0;
+
+void Delay500ms()		//@11.0592MHz
+{
+	unsigned char i, j, k;
+
+
+	i = 4;
+	j = 129;
+	k = 119;
+	do
+	{
+		do
+		{
+			while (--k);
+		} while (--j);
+	} while (--i);
+}
+void Music_Time_Wait()
+{
+	Music_Time_Wait_Flag=0;
+	while(!Music_Time_Wait_Flag)
+	{
+		//Delay500ms();
+	}
+	
+	Music_Time_Wait_Flag=0;
+}
+void Music_Time_Hour()
+{
+	switch(TIME[2])
+				{	
+					case 1: Music_CMD(4,1,Play_Folder);break;
+					case 2: Music_CMD(4,2,Play_Folder);break;
+					case 3: Music_CMD(4,3,Play_Folder);break;
+					case 4: Music_CMD(4,4,Play_Folder);break;
+					case 5: Music_CMD(4,5,Play_Folder);break;
+					case 6: Music_CMD(4,6,Play_Folder);break;
+					case 7: Music_CMD(4,7,Play_Folder);break;
+					case 8: Music_CMD(4,8,Play_Folder);break;
+					case 9: Music_CMD(4,9,Play_Folder);break;
+					case 10: Music_CMD(4,10,Play_Folder);break;
+					case 11: Music_CMD(4,11,Play_Folder);break;
+					case 12: Music_CMD(4,12,Play_Folder);break;
+					case 13: Music_CMD(4,1,Play_Folder);break;
+					case 14: Music_CMD(4,2,Play_Folder);break;
+					case 15: Music_CMD(4,3,Play_Folder);break;
+					case 16: Music_CMD(4,4,Play_Folder);break;
+					case 17: Music_CMD(4,5,Play_Folder);break;
+					case 18: Music_CMD(4,6,Play_Folder);break;
+					case 19: Music_CMD(4,7,Play_Folder);break;
+					case 20: Music_CMD(4,8,Play_Folder);break;
+					case 21: Music_CMD(4,9,Play_Folder);break;
+					case 22: Music_CMD(4,10,Play_Folder);break;
+					case 23: Music_CMD(4,11,Play_Folder);break;
+					case 0: Music_CMD(4,12,Play_Folder);break;
+				}
+
+}
+	
+
+
+void Music_Time()
+{
+	if(TIME[1]>=0&&TIME[1]<10)
+	{
+		switch(TIME[2])
+				{	
+					case 1: Music_CMD(3,1,Play_Folder);break;
+					case 2: Music_CMD(3,2,Play_Folder);break;
+					case 3: Music_CMD(3,3,Play_Folder);break;
+					case 4: Music_CMD(3,4,Play_Folder);break;
+					case 5: Music_CMD(3,5,Play_Folder);break;
+					case 6: Music_CMD(3,6,Play_Folder);break;
+					case 7: Music_CMD(3,7,Play_Folder);break;
+					case 8: Music_CMD(3,8,Play_Folder);break;
+					case 9: Music_CMD(3,9,Play_Folder);break;
+					case 10: Music_CMD(3,10,Play_Folder);break;
+					case 11: Music_CMD(3,11,Play_Folder);break;
+					case 12: Music_CMD(3,12,Play_Folder);break;
+					case 13: Music_CMD(3,1,Play_Folder);break;
+					case 14: Music_CMD(3,2,Play_Folder);break;
+					case 15: Music_CMD(3,3,Play_Folder);break;
+					case 16: Music_CMD(3,4,Play_Folder);break;
+					case 17: Music_CMD(3,5,Play_Folder);break;
+					case 18: Music_CMD(3,6,Play_Folder);break;
+					case 19: Music_CMD(3,7,Play_Folder);break;
+					case 20: Music_CMD(3,8,Play_Folder);break;
+					case 21: Music_CMD(3,9,Play_Folder);break;
+					case 22: Music_CMD(3,10,Play_Folder);break;
+					case 23: Music_CMD(3,11,Play_Folder);break;
+					case 0: Music_CMD(3,12,Play_Folder);break;
+				}
+	}
+	else if(TIME[1]>=10&&TIME[1]<20)
+	{
+		Music_Time_Hour();
+		Music_Time_Wait();
+		Music_CMD(5,10,Play_Folder);
+	}
+	else if(TIME[1]>=20&&TIME[1]<30)
+	{
+		Music_Time_Hour();
+		Music_Time_Wait();
+		Music_CMD(5,20,Play_Folder);
+	}
+	else if(TIME[1]>=30&&TIME[1]<40)
+	{
+		Music_Time_Hour();
+		Music_Time_Wait();
+		Music_CMD(5,30,Play_Folder);
+	}
+	else if(TIME[1]>=40&&TIME[1]<50)
+	{
+		Music_Time_Hour();
+		Music_Time_Wait();
+		Music_CMD(5,40,Play_Folder);
+	}
+	else if(TIME[1]>=50&&TIME[1]<60)
+	{
+		Music_Time_Hour();
+		Music_Time_Wait();
+		Music_CMD(5,50,Play_Folder);
+	}
+	if(TIME[2]>=0&&TIME[2]<=4)
+	{
+		Music_Time_Wait();
+		Music_CMD(2,6,Play_Folder);
+	}
+	
+}
+
+void UART_Music(unsigned char Date)//8
+{
+	static unsigned char UART_Music_NUM=0,UART_Music_BUF[9];
+	UART_Music_NUM++;
+	if(UART_Music_NUM<=8)
+	{
+		UART_Music_BUF[UART_Music_NUM]=Date;
+		if(UART_Music_NUM==8)
+		{
+			if(UART_Music_BUF[3]==0x4C)Music_Time_Wait_Flag=1;
+			if(UART_Check(6,UART_Music_BUF))
+			{
+				
+			}
+		}
+	}
+	else if(UART_Music_NUM>8&&Date==0xEF)
+	{
+		UART_Music_NUM=0;
+		UART_State=0;
+	}
+}
+
+void UART_BlueTooth(unsigned char Date)
+{
+	static unsigned char UART_BlueTooth_NUM=0;
+	UART_BlueTooth_NUM++;
+	UART_State=0;
+}
+
+void UART_Light(unsigned char Date)//4
+{
+	static unsigned char UART_Light_NUM=0,UART_Light_BUF[5];
+	UART_Light_NUM++;
+	if(UART_Light_NUM<=4)
+	{
+		UART_Light_BUF[UART_Light_NUM]=Date;
+		if(UART_Light_NUM==4)
+		{
+			if(UART_Check(2,UART_Light_BUF))
+			{
+				lx=UART_Light_BUF[1]*256+UART_Light_BUF[2];
+			}
+		}
+	}
+	else if(UART_Light_NUM>4&&Date==0xEF)
+	{
+		UART_Light_NUM=0;
+		UART_State=0;
+	}
+}
+//Voice_BUF[5]
+
+void UART_Voice(unsigned char Date)//4
+{
+	static unsigned char UART_Voice_NUM=0,UART_Voice_BUF[5];
+	UART_Voice_NUM++;
+	if(UART_Voice_NUM<=4)
+	{
+		UART_Voice_BUF[UART_Voice_NUM]=Date;
+		if(UART_Voice_NUM==4)
+		{
+			if(UART_Check(2,UART_Voice_BUF))
+			{
+				if(UART_Voice_BUF[2]==0x01||UART_Voice_BUF[2]==0x62||UART_Voice_BUF[2]==0x64)
+				{
+					Voice_Flag_AZ=1;
+					Voice_Flag_AZ_Go=1;
+					return;
+				}
+				if(Voice_Flag_AZ)
+				{
+					if(UART_Voice_BUF[1])
+					{
+						if(UART_Voice_BUF[2]==0xEF)
+						{
+							Voice_NUM=0;
+							Voice_Flag_AZ=0;
+							return;
+						}
+						Voice_Flag=1;
+						Voice_NUM++;
+						Voice_BUF[Voice_NUM]=UART_Voice_BUF[2];
+						
+					}
+					else
+					{
+						switch(UART_Voice_BUF[2])
+							{	
+								case 0xF0: Voice_Flag_AZ=0;break;
+								case 0xF1: Voice_Flag_AZ=0;break;
+								case 0xF2: Voice_Flag_AZ=0;break;
+								case 0xF3: Music_CMD(0,Music_Volume,Volume);Music_Time_Flag=1;Voice_Flag_AZ=0;break;
+								case 0xF4: Music_CMD(0,Music_Volume,Volume);Music_CMD(0,Music_NUM+1,Play_Music);Voice_Flag_AZ=0;break;
+								case 0xF5: Music_NUM++;Music_NUM%=Music_MAX_NUM;Music_CMD(0,1,Volume);Music_CMD(0,Music_NUM+1,Play_Music);Voice_Flag_AZ=0;break;
+								case 0xF6: Music_CMD(0,Music_Volume,Volume);Music_CMD(2,5,Play_Folder);Voice_Flag_AZ=0;break;
+								case 0xF7: Music_CMD(0,Music_Volume,Volume);Music_CMD(2,4,Play_Folder);Voice_Flag_AZ=0;break;
+							}
+					}
+				}	
+				
+//				Voice_Flag=1;
+//				if(UART_Voice_BUF[2]==0xF4)
+//				{
+//					Music_CMD(0,1,Volume);
+//					Music_CMD(0,2,Play_Music);
+//				}
+//				if(UART_Voice_BUF[2]==0xF5)
+//				{
+//					Music_CMD(0,1,Volume);
+//					Music_CMD(0,1,Play_Music);
+				}
+			}
+	}
+	
+	else if(UART_Voice_NUM>4&&Date==0xEF)
+	{   
+		UART_Voice_NUM=0;
+		UART_State=0;
+	}
+}
+
 void UART_Routine() interrupt 4
 {
 	static unsigned char BUF_NUM=0;
@@ -954,23 +1459,56 @@ void UART_Routine() interrupt 4
 	{
 		RI=0;
 		Temp=SBUF;
-		if(Temp==CMD_OVER)
+		if(!UART_State)
 		{
-				switch(UART_RX_BUF[0])
+			switch(Temp)
 			{	
-				case CMD_Get: BlueTooth_CMD_Get();break;
-				case CMD_Switch: BlueTooth_CMD_Switch();break;
-				case CMD_Set: BlueTooth_CMD_Set();break;
-				case CMD_AlarmReset: BlueTooth_CMD_AlarmReset();break;
-				default: BlueTooth_CMD_Default();break;
+				case 0xEE: UART_State=1;break;
+				case 0xFE: UART_State=2;break;
+				case 0x7E: UART_State=3;break;
+				case 0xDE: UART_State=4;break;
 			}
-			BUF_NUM=0;
 		}
 		else
 		{
-			UART_RX_BUF[BUF_NUM++]=Temp;
-			BUF_NUM%=4;
+//			if(Temp==0xEF)
+//			{
+//				switch(UART_State)
+//					{	
+//						case 1: UART_BlueTooth(0xFF);break;
+//						case 2: UART_Light(0xFF);break;
+//						case 3: UART_Music(0xFF);break;
+//						case 4: UART_Voice(0xFF);break;
+//					}
+//				UART_State=0;
+//				return;
+//			}
+			switch(UART_State)
+			{	
+				case 1: UART_BlueTooth(Temp);break;
+				case 2: UART_Light(Temp);break;
+				case 3: UART_Music(Temp);break;
+				case 4: UART_Voice(Temp);break;
+			}
 		}
+		
+//		if(Temp==CMD_OVER)
+//		{
+//				switch(UART_RX_BUF[0])
+//			{	
+//				case CMD_Get: BlueTooth_CMD_Get();break;
+//				case CMD_Switch: BlueTooth_CMD_Switch();break;
+//				case CMD_Set: BlueTooth_CMD_Set();break;
+//				case CMD_AlarmReset: BlueTooth_CMD_AlarmReset();break;
+//				default: BlueTooth_CMD_Default();break;
+//			}
+//			BUF_NUM=0;
+//		}
+//		else
+//		{
+//			UART_RX_BUF[BUF_NUM++]=Temp;
+//			BUF_NUM%=4;
+//		}
 	}
 }
 
@@ -985,7 +1523,7 @@ void Timer0_Routine() interrupt 1
 		Key_Counter=0;
 		Key_Entry();
 	}
-	if(((!TIME[0])&&Alarm_Set[0])&&BUZ_Flag){BUZ_Flag=0;BUZ_Counter=0;BUZ=0;}
+	if(((!TIME[1])&&(!TIME[0])&&Alarm_Set[0])&&BUZ_Flag){BUZ_Flag=0;BUZ_Counter=0;BUZ=0;}
 	if(!BUZ_Flag)BUZ_Counter++;
 	if(BUZ_Counter>=100)BUZ=1;
 	if(BUZ_Counter>=5000)BUZ_Flag=1;
