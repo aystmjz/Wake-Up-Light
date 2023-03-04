@@ -14,12 +14,11 @@ unsigned char DS3231_I2C_ReceiveByte(void);
 void DS3231_I2C_SendAck(bit AckBit);
 bit DS3231_I2C_ReceiveAck(void);
 
-void GY302_I2C_Start(void);
-void GY302_I2C_Stop(void);
-void GY302_I2C_SendByte(unsigned char Byte);
-unsigned char GY302_I2C_ReceiveByte(void);
-void GY302_I2C_SendAck(bit AckBit);
-bit GY302_I2C_ReceiveAck(void);
-
+void AT24C02_I2C_Start(void);
+void AT24C02_I2C_Stop(void);
+void AT24C02_I2C_SendByte(unsigned char Byte);
+unsigned char AT24C02_I2C_ReceiveByte(void);
+void AT24C02_I2C_SendAck(bit AckBit);
+bit AT24C02_I2C_ReceiveAck(void);
 
 #endif
