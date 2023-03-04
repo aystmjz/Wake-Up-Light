@@ -7,11 +7,9 @@ sbit DS3231_I2C_SCL=P2^2;
 sbit DS3231_I2C_SDA=P2^1;
 sbit GY302_I2C_SCL=P2^4;
 sbit GY302_I2C_SDA=P2^5;
+sbit AT24C02_I2C_SCL=P2^4;
+sbit AT24C02_I2C_SDA=P2^5;
 
-void OLED_I2C_delay()
-{
-
-}
 
 void OLED_I2C_Start(void)
 {
@@ -139,75 +137,75 @@ bit DS3231_I2C_ReceiveAck(void)
 /////////////////////////////////////
 
 
-void GY302_I2C_delay()
+void AT24C02_I2C_delay()
 {
 	_nop_();
 }
 
-void GY302_I2C_Start(void)
+void AT24C02_I2C_Start(void)
 {
-	GY302_I2C_SDA=1;
-	GY302_I2C_SCL=1;
-	GY302_I2C_delay();
-	GY302_I2C_SDA=0;
-	GY302_I2C_delay();
-	GY302_I2C_SCL=0;
+	AT24C02_I2C_SDA=1;
+	AT24C02_I2C_SCL=1;
+	AT24C02_I2C_delay();
+	AT24C02_I2C_SDA=0;
+	AT24C02_I2C_delay();
+	AT24C02_I2C_SCL=0;
 }
 
-void GY302_I2C_Stop(void)
+void AT24C02_I2C_Stop(void)
 {
-	GY302_I2C_SDA=0;
-	GY302_I2C_SCL=1;
-	GY302_I2C_delay();
-	GY302_I2C_SDA=1;
+	AT24C02_I2C_SDA=0;
+	AT24C02_I2C_SCL=1;
+	AT24C02_I2C_delay();
+	AT24C02_I2C_SDA=1;
 }
 
-void GY302_I2C_SendByte(unsigned char Byte)
+void AT24C02_I2C_SendByte(unsigned char Byte)
 {
 	unsigned char i;
 	for(i=0;i<8;i++)
 	{
-		GY302_I2C_SDA=Byte&(0x80>>i);
-		GY302_I2C_SCL=1;
-		GY302_I2C_delay();
-		GY302_I2C_SCL=0;
-		GY302_I2C_delay();
+		AT24C02_I2C_SDA=Byte&(0x80>>i);
+		AT24C02_I2C_SCL=1;
+		AT24C02_I2C_delay();
+		AT24C02_I2C_SCL=0;
+		AT24C02_I2C_delay();
 	}
 }
 
-unsigned char GY302_I2C_ReceiveByte(void)
+unsigned char AT24C02_I2C_ReceiveByte(void)
 {
 	unsigned char i,Byte=0x00;
-	GY302_I2C_SDA=1;
+	AT24C02_I2C_SDA=1;
 	for(i=0;i<8;i++)
 	{
-		GY302_I2C_SCL=1;
-		GY302_I2C_delay();
-		if(GY302_I2C_SDA){Byte|=(0x80>>i);}
-		GY302_I2C_SCL=0;
-		GY302_I2C_delay();
+		AT24C02_I2C_SCL=1;
+		AT24C02_I2C_delay();
+		if(AT24C02_I2C_SDA){Byte|=(0x80>>i);}
+		AT24C02_I2C_SCL=0;
+		AT24C02_I2C_delay();
 	}
 	return Byte;
 }
 
-void GY302_I2C_SendAck(bit AckBit)
+void AT24C02_I2C_SendAck(bit AckBit)
 {
-	GY302_I2C_SDA=AckBit;
-	GY302_I2C_SCL=1;
-	GY302_I2C_delay();
-	GY302_I2C_SCL=0;
-	GY302_I2C_delay();
+	AT24C02_I2C_SDA=AckBit;
+	AT24C02_I2C_SCL=1;
+	AT24C02_I2C_delay();
+	AT24C02_I2C_SCL=0;
+	AT24C02_I2C_delay();
 }
 
-bit GY302_I2C_ReceiveAck(void)
+bit AT24C02_I2C_ReceiveAck(void)
 {
 	unsigned char AckBit;
-	GY302_I2C_SDA=1;
-	GY302_I2C_delay();
-	GY302_I2C_SCL=1;
-	AckBit=GY302_I2C_SDA;
-	GY302_I2C_delay();
-	GY302_I2C_SCL=0;
-	GY302_I2C_delay();
+	AT24C02_I2C_SDA=1;
+	AT24C02_I2C_delay();
+	AT24C02_I2C_SCL=1;
+	AckBit=AT24C02_I2C_SDA;
+	AT24C02_I2C_delay();
+	AT24C02_I2C_SCL=0;
+	AT24C02_I2C_delay();
 	return AckBit;
 }
