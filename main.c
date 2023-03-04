@@ -8,46 +8,46 @@
 #include "DS3231.h"
 #include "I2C.h"
 #include "DHT11.h"
-//#include "GY302.h"
 #include "STC89C5xRC.h"
 #include "AT24C02.h"
 #include "Music.h"
+#include <REGX52.H>
+
 #define Music_MAX_NUM  2
 #define Music_Volume	2
 #define DS3231_STATUS 0x0F
+
+sbit BUZ=P0^0;
+sbit RELAY=P2^0;
+
+char Alarm_Choose_Flag=0;
+char Time_Choose_Flag=0;
+char TIME_Judge[7] = {0xFF, 0xFF,0xFF, 0xFF, 0xFF, 0xFF, 0xFF};//īؖʱɕՂלŪ
+unsigned char Alarm_Set_Judge[8]={0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+char Alarm_Date_Judge[2]={0xFF,0xFF};
+
 unsigned char KeyNum;
-#include <REGX52.H>
 unsigned char PWM_Couter=0,f=0;
 unsigned int PWM_Timer=0,PWM_Compare=1;
 unsigned char PWM_Timer_Sec=0,PWM_Timer_Min=0;
+unsigned int PWM_Timer_Sec_Sum=0;
 unsigned char PWM_Run_Flag=0;
+unsigned char PWM_Auto_Flag=0;
 unsigned char Refresh_Flag=0;
 unsigned char Int1_Flag=0;
 unsigned char BUZ_Flag=0;
 unsigned int lx=0;
 unsigned char Music_NUM=1;
-//unsigned int PWM_Mod=0;
-
-//unsigned char Alarm_Enable;
-//unsigned char BUZ_Enable=1;//==Alarm_Set[0]
-//Alarm_Status[2]={0,0};
-
-//unsigned char BUF_Enable=1;
 unsigned char Time_Choose=0;
 unsigned char Alarm_Choose=0;
-char Alarm_Choose_Flag=0;
-char Time_Choose_Flag=0;
-sbit BUZ=P0^0;
-sbit RELAY=P2^0;
-char TIME_Judge[7] = {0xFF, 0xFF,0xFF, 0xFF, 0xFF, 0xFF, 0xFF};//īؖʱɕՂלŪ
-unsigned char Alarm_Set_Judge[8]={0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
-char Alarm_Date_Judge[2]={0xFF,0xFF};
-unsigned char A=0x00;
-unsigned char BlueTooth_Refresh_Flag;
+unsigned char BlueTooth_Refresh_Flag=0;
 unsigned char Alarm_Reset_Flag;
 unsigned char Voice_Flag_AZ=0;
 unsigned char Voice_Flag_AZ_Go=0;
 unsigned char Music_Time_Flag=0;
+unsigned char RT_Light_Flag=0;
+extern unsigned char Light_Date[181];
+
 void Wait_Key()
 {
 		KeyNum=Get_KeyNumber();
@@ -56,21 +56,13 @@ void Wait_Key()
 void Music_Time();
 void KeyNumber_CTRL1()
 {
-	
-	//Music_CMD(2,2,Play_Folder);
-	//Music_CMD(2,3,Play_Folder);
-	//OLED_Clear();
-Music_Time();
-//Music_CMD(0,1,Volume);
-//Music_CMD(0,2,Play_Music);
+
 }
 
 void KeyNumber_CTRL2()
 {
-Music_CMD(0,1,Volume);
-Music_CMD(0,1,Play_Music);
+
 }
-void Show_Time();
 
 void TimeJudge()
 {
@@ -190,28 +182,38 @@ void KeyNumber_Set_Clock()
 }
 void WriteAlarm()
 {
-			switch(PWM_Mod)
-		{	
-			case 0: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-5)/60;
-							Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-5)%60;break;
-			case 1: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-10)/60;
-							Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-10)%60;break;
-			case 2: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-15)/60;
-							Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-15)%60;break;
-			case 3: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-20)/60;
-							Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-20)%60;break;
-			case 4: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-30)/60;
-							Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-30)%60;break;
-			case 5: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-40)/60;
-							Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-40)%60;break;
-			case 6: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-60)/60;
-							Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-60)%60;break;
-		}
-		
-	if(Alarm_Date_Temp[0]<0||Alarm_Date_Temp[1]<0)
+	if(PWM_Mod==7)
 	{
-		Alarm_Date_Temp[0]=(1440+Alarm_Date_Temp[0]*60+Alarm_Date_Temp[1])/60;
-		Alarm_Date_Temp[1]=(1440+Alarm_Date_Temp[0]*60+Alarm_Date_Temp[1])%60;
+		Alarm_Date[0]=6;
+		Alarm_Date[1]=0;
+		Alarm_Date_Temp[0]=6;
+		Alarm_Date_Temp[1]=0;
+	}
+	else
+	{
+		switch(PWM_Mod)
+			{	
+				case 0: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-5)/60;
+								Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-5)%60;break;
+				case 1: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-10)/60;
+								Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-10)%60;break;
+				case 2: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-15)/60;
+								Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-15)%60;break;
+				case 3: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-20)/60;
+								Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-20)%60;break;
+				case 4: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-30)/60;
+								Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-30)%60;break;
+				case 5: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-40)/60;
+								Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-40)%60;break;
+				case 6: Alarm_Date_Temp[0]=(Alarm_Date[0]*60+Alarm_Date[1]-60)/60;
+								Alarm_Date_Temp[1]=(Alarm_Date[0]*60+Alarm_Date[1]-60)%60;break;
+			}
+			
+		if(Alarm_Date_Temp[0]<0||Alarm_Date_Temp[1]<0)
+		{
+			Alarm_Date_Temp[0]=(1440+Alarm_Date_Temp[0]*60+Alarm_Date_Temp[1])/60;
+			Alarm_Date_Temp[1]=(1440+Alarm_Date_Temp[0]*60+Alarm_Date_Temp[1])%60;
+		}
 	}
 	DS3231_WriteAlarm();
 }
@@ -220,7 +222,7 @@ void Alarm_Judge()
 {
 	if(Alarm_Date[0]<0)Alarm_Date[0]=23;if(Alarm_Date[0]>23)Alarm_Date[0]=0;
 	if(Alarm_Date[1]<0)Alarm_Date[1]=59;if(Alarm_Date[1]>59)Alarm_Date[1]=0;
-	if(PWM_Mod<0)PWM_Mod=6;if(PWM_Mod>6)PWM_Mod=0;
+	if(PWM_Mod<0)PWM_Mod=7;if(PWM_Mod>7)PWM_Mod=0;
 }
 
 void KeyNumber_Set_Alarm()
@@ -274,7 +276,8 @@ void KeyNumber_Set_Alarm()
 				case 4: OLED_ShowNum(104,4,30,2,16);break;
 				case 5: OLED_ShowNum(104,4,40,2,16);break;
 				case 6: OLED_ShowNum(104,4,60,2,16);break;
-			}//5,10,15,20,30,40,60
+				case 7: OLED_ShowString(104,4,"A",16);OLED_ShowString(112,4,"T",16);break;
+			}//5,10,15,20,30,40,60,Auto
 	OLED_ShowChar(120,4,'m',16);
 	
 	KeyNum=Get_KeyNumber();
@@ -399,6 +402,7 @@ void KeyNumber_Set_Alarm()
 				case 4: OLED_ShowNum(104,4,30,2,16);break;
 				case 5: OLED_ShowNum(104,4,40,2,16);break;
 				case 6: OLED_ShowNum(104,4,60,2,16);break;
+				case 7: OLED_ShowString(104,4,"A",16);OLED_ShowString(112,4,"T",16);break;
 			}//5,10,15,20,30,40,60
 			if(Alarm_Choose_Flag>=0)
 			OLED_ShowChar(120,4,'m',16);
@@ -438,11 +442,21 @@ void KeyNumber_Set_Alarm()
 }
 void KeyNumber_Set_Other()
 {
+	OLED_Clear();
+	OLED_DrawLight();
 	Wait_Key();
 	switch(KeyNum)
 			{	
-				case 1: Music_CMD(1,1,Play_Folder);break;
-				case 2: Music_CMD(1,2,Play_Folder);break;
+				case 1: 
+				{	unsigned char i,Temp=0x00;
+					for(i=0;i<=180;i++)
+					{
+						AT24C02_WriteByte(Temp,(i*i)/140);
+						Temp++;
+					}
+				break;
+				}
+				case 2: OLED_Clear();break;
 				case 3: OLED_Clear();break;
 				case 4: OLED_Clear();break;
 			}
@@ -695,6 +709,12 @@ void Voice_Disp()
 }
 
 
+//extern char TIME[7] = {0, 0, 0x16, 0x1C, 0x06, 0x01, 0x17};//秒分时日月周年
+unsigned int Time_Sum()
+{
+	return TIME[2]*60+TIME[1];
+}
+
 void main()
 {
 	Timer0_Init();
@@ -703,14 +723,8 @@ void main()
 	Int1_Init();
 	Timer_Init();
 	DS3231_Init();
-	OLED_Init();//ԵʼۯOLED
-//	OLED_ColorTurn(0);//0ֽӣДʾì1 ״ɫДʾ
-  //OLED_DisplayTurn(0);//0ֽӣДʾ 1 ǁĻ׭תДʾ
-	
-			//DHT11_Read_RH_C();
-	//OLED_ShowString(8,0,"OK?",16);
-	//GY302_Init();
-	//Timer2Init();
+	OLED_Init();
+	AT24C02_Init();
 	EX0=1;
 	PX1=1;
 	IPH=0x04;
@@ -730,11 +744,6 @@ void main()
 			}
 			Refresh_Flag=1;
 		}
-//OLED_ShowNum(0,4,A,2,16);
-		
-//OLED_ShowNum(80,0,AT24C02_ReadByte(1),5,16);
-		//Alarm_Set[TIME[5]]
-		//OLED_ShowNum(8,4,EX0,1,16);
 		OLED_ShowNum(0,0,DHT11_RH_C[1],2,16);
 		if(Refresh_Flag)
 		OLED_ShowChar(16,0,'.',16);
@@ -896,7 +905,6 @@ void main()
 			Music_CMD(2,1,Play_Folder);
 			Voice_Flag_AZ_Go=0;
 		}
-		
 		if(BlueTooth_Refresh_Flag)
 		{
 			BlueTooth_Refresh_Flag=0;
@@ -907,22 +915,34 @@ void main()
 			OLED_Clear();
 			Refresh_Flag=1;
 		}
-		
-		DS3231_ReadTime();
-		//AT24C02_WriteByte(1,A);
-		//GY302_Read_lx();
-		//if((!(TIME[1]||TIME[0]))&&Alarm_Set[0])BUZ=0;
-		if(Alarm_Reset_Flag){Alarm_Reset_Flag=0;DS3231_WriteByte(DS3231_STATUS,0x00);};
+		if(Alarm_Reset_Flag)
+		{
+			Alarm_Reset_Flag=0;
+			DS3231_WriteByte(DS3231_STATUS,0x00);
+		}
 		if(PWM_Run_Flag)
 		{
 			BUZ=1;
 			OLED_DrawBMP(2);
-			//DS3231_WriteByte(DS3231_STATUS,0x00);
 			PWM_Run();
 			OLED_Clear();
 			Refresh_Flag=1;
 			PWM_Run_Flag=0;
+			PWM_Timer_Sec_Sum=0;
 		}
+		if((!Alarm_Set[TIME[5]])&&lx)
+		{
+			if(Time_Sum()>360&&Time_Sum()<540)
+			{
+				if((lx/20)>100)
+				Light_Date[Time_Sum()-360]=100;
+				else
+				Light_Date[Time_Sum()-360]=lx/20;
+			}
+			if(Time_Sum()==541&&(!TIME[0]||(TIME[0]==1)))
+			AT24C02_Write_Light();
+		}
+		DS3231_ReadTime();
 	}
 }
 
@@ -985,7 +1005,7 @@ void BlueTooth_CMD_Get()
 	BlueTooth_SendNum(DHT11_RH_C[0]);
 	BlueTooth_SendString("RH ");
 	BlueTooth_SendString("光照:");
-//	BlueTooth_SendNum(lx);
+  BlueTooth_SendNum(lx);
 	BlueTooth_SendString("lx");
 	BlueTooth_SendByte(LF);
 	}
@@ -1191,36 +1211,18 @@ void BlueTooth_CMD_Default()
 }
 
 
-
-
 unsigned char UART_State=0;
 
 
 //TIME[7] = {0, 0, 0x16, 0x1C, 0x06, 0x01, 0x17};//秒分时日月周年
 unsigned char Music_Time_Wait_Flag=0;
 
-void Delay500ms()		//@11.0592MHz
-{
-	unsigned char i, j, k;
-
-
-	i = 4;
-	j = 129;
-	k = 119;
-	do
-	{
-		do
-		{
-			while (--k);
-		} while (--j);
-	} while (--i);
-}
 void Music_Time_Wait()
 {
 	Music_Time_Wait_Flag=0;
 	while(!Music_Time_Wait_Flag)
 	{
-		//Delay500ms();
+		
 	}
 	
 	Music_Time_Wait_Flag=0;
@@ -1338,10 +1340,9 @@ void UART_Music(unsigned char Date)//8
 		UART_Music_BUF[UART_Music_NUM]=Date;
 		if(UART_Music_NUM==8)
 		{
-			if(UART_Music_BUF[3]==0x4C)Music_Time_Wait_Flag=1;
 			if(UART_Check(6,UART_Music_BUF))
 			{
-				
+				if(UART_Music_BUF[3]==0x4C)Music_Time_Wait_Flag=1;
 			}
 		}
 	}
@@ -1355,6 +1356,7 @@ void UART_Music(unsigned char Date)//8
 void UART_BlueTooth(unsigned char Date)
 {
 	static unsigned char UART_BlueTooth_NUM=0;
+	Date=0;
 	UART_BlueTooth_NUM++;
 	UART_State=0;
 }
@@ -1380,7 +1382,7 @@ void UART_Light(unsigned char Date)//4
 		UART_State=0;
 	}
 }
-//Voice_BUF[5]
+
 
 void UART_Voice(unsigned char Date)//4
 {
@@ -1417,31 +1419,33 @@ void UART_Voice(unsigned char Date)//4
 					else
 					{
 						switch(UART_Voice_BUF[2])
-							{	
-								case 0xF0: Voice_Flag_AZ=0;break;
-								case 0xF1: Voice_Flag_AZ=0;break;
-								case 0xF2: Voice_Flag_AZ=0;break;
-								case 0xF3: Music_CMD(0,Music_Volume,Volume);Music_Time_Flag=1;Voice_Flag_AZ=0;break;
-								case 0xF4: Music_CMD(0,Music_Volume,Volume);Music_CMD(0,Music_NUM+1,Play_Music);Voice_Flag_AZ=0;break;
-								case 0xF5: Music_NUM++;Music_NUM%=Music_MAX_NUM;Music_CMD(0,1,Volume);Music_CMD(0,Music_NUM+1,Play_Music);Voice_Flag_AZ=0;break;
-								case 0xF6: Music_CMD(0,Music_Volume,Volume);Music_CMD(2,5,Play_Folder);Voice_Flag_AZ=0;break;
-								case 0xF7: Music_CMD(0,Music_Volume,Volume);Music_CMD(2,4,Play_Folder);Voice_Flag_AZ=0;break;
+						{	
+							case 0xF0: Voice_Flag_AZ=0;break;
+							case 0xF1: Voice_Flag_AZ=0;break;
+							case 0xF2: Voice_Flag_AZ=0;break;
+							case 0xF3: Music_CMD(0,Music_Volume,Volume);Music_Time_Flag=1;Voice_Flag_AZ=0;break;
+							case 0xF4: Music_CMD(0,Music_Volume,Volume);Music_CMD(0,Music_NUM+1,Play_Music);Voice_Flag_AZ=0;break;
+							case 0xF5: Music_NUM++;Music_NUM%=Music_MAX_NUM;Music_CMD(0,1,Volume);Music_CMD(0,Music_NUM+1,Play_Music);Voice_Flag_AZ=0;break;
+							case 0xF6: Music_CMD(0,Music_Volume,Volume);Music_CMD(2,5,Play_Folder);Voice_Flag_AZ=0;break;
+							case 0xF7: 
+							{
+								Refresh_Flag=1;
+								Alarm_Date[0]=6;
+								Alarm_Date[1]=0;
+								Alarm_Date_Temp[0]=6;
+								Alarm_Date_Temp[1]=0;
+								DS3231_WriteAlarm();
+								RT_Light_Flag=1;
+								Music_CMD(0,Music_Volume,Volume);
+								Music_CMD(2,4,Play_Folder);
+								Voice_Flag_AZ=0;
+								break;
 							}
+						}
 					}
 				}	
-				
-//				Voice_Flag=1;
-//				if(UART_Voice_BUF[2]==0xF4)
-//				{
-//					Music_CMD(0,1,Volume);
-//					Music_CMD(0,2,Play_Music);
-//				}
-//				if(UART_Voice_BUF[2]==0xF5)
-//				{
-//					Music_CMD(0,1,Volume);
-//					Music_CMD(0,1,Play_Music);
-				}
 			}
+		}
 	}
 	
 	else if(UART_Voice_NUM>4&&Date==0xEF)
@@ -1450,67 +1454,67 @@ void UART_Voice(unsigned char Date)//4
 		UART_State=0;
 	}
 }
+unsigned char SBUF_Temp,SBUF_Flag=0;
+unsigned char SWITCH=1;
 
 void UART_Routine() interrupt 4
 {
-	static unsigned char BUF_NUM=0;
 	unsigned char Temp;
 	if(RI==1)
 	{
 		RI=0;
-		Temp=SBUF;
-		if(!UART_State)
+		if(SWITCH)
 		{
-			switch(Temp)
-			{	
-				case 0xEE: UART_State=1;break;
-				case 0xFE: UART_State=2;break;
-				case 0x7E: UART_State=3;break;
-				case 0xDE: UART_State=4;break;
+			if(!PWM_Run_Flag)
+			{
+				Temp=SBUF;
+				if(!UART_State)
+				{
+					switch(Temp)
+					{	
+						case 0xEE: UART_State=1;break;
+						case 0xFE: UART_State=2;break;
+						case 0x7E: UART_State=3;break;
+						case 0xDE: UART_State=4;break;
+					}
+				}
+				else
+				{
+					switch(UART_State)
+					{	
+						case 1: UART_BlueTooth(Temp);break;
+						case 2: UART_Light(Temp);break;
+						case 3: UART_Music(Temp);break;
+						case 4: UART_Voice(Temp);break;
+					}
+				}
 			}
 		}
 		else
 		{
-//			if(Temp==0xEF)
-//			{
-//				switch(UART_State)
-//					{	
-//						case 1: UART_BlueTooth(0xFF);break;
-//						case 2: UART_Light(0xFF);break;
-//						case 3: UART_Music(0xFF);break;
-//						case 4: UART_Voice(0xFF);break;
-//					}
-//				UART_State=0;
-//				return;
-//			}
-			switch(UART_State)
-			{	
-				case 1: UART_BlueTooth(Temp);break;
-				case 2: UART_Light(Temp);break;
-				case 3: UART_Music(Temp);break;
-				case 4: UART_Voice(Temp);break;
+			static unsigned char BUF_NUM=0;
+			Temp=SBUF;
+			if(Temp==CMD_OVER)
+			{
+				switch(UART_RX_BUF[0])
+				{	
+					case CMD_Get: BlueTooth_CMD_Get();break;
+					case CMD_Switch: BlueTooth_CMD_Switch();break;
+					case CMD_Set: BlueTooth_CMD_Set();break;
+					case CMD_AlarmReset: BlueTooth_CMD_AlarmReset();break;
+					default: BlueTooth_CMD_Default();break;
+				}
+				BUF_NUM=0;
+			}
+			else
+			{
+				UART_RX_BUF[BUF_NUM++]=Temp;
+				BUF_NUM%=4;
 			}
 		}
-		
-//		if(Temp==CMD_OVER)
-//		{
-//				switch(UART_RX_BUF[0])
-//			{	
-//				case CMD_Get: BlueTooth_CMD_Get();break;
-//				case CMD_Switch: BlueTooth_CMD_Switch();break;
-//				case CMD_Set: BlueTooth_CMD_Set();break;
-//				case CMD_AlarmReset: BlueTooth_CMD_AlarmReset();break;
-//				default: BlueTooth_CMD_Default();break;
-//			}
-//			BUF_NUM=0;
-//		}
-//		else
-//		{
-//			UART_RX_BUF[BUF_NUM++]=Temp;
-//			BUF_NUM%=4;
-//		}
 	}
 }
+
 
 void Timer0_Routine() interrupt 1
 {
@@ -1530,8 +1534,18 @@ void Timer0_Routine() interrupt 1
 }
 
 
+
+
 void PWM_Run()
 {
+	unsigned char i;
+	if(RT_Light_Flag)
+	{
+		for(i=1;i<=10;i++)
+		{
+			UART_SendByte(0xFE);
+		}
+	}
 	RELAY=0;
 	PWM_Timer=0;PWM_Timer_Sec=0,PWM_Timer_Min=0;
 	Int1_Flag=0;
@@ -1540,25 +1554,43 @@ void PWM_Run()
 	ET0=0;ET2=1;
 	while(!Int1_Flag)
 	{
-		if(PWM_Timer_Min)
+		if(RT_Light_Flag)
 		{
-		switch(PWM_Mod)
-			{	
-				case 0: PWM_Compare=PWM_Timer_Min*10;break;
-				case 1: PWM_Compare=PWM_Timer_Min*5;break;
-				case 2: PWM_Compare=PWM_Timer_Min*10/3;break;
-				case 3: PWM_Compare=PWM_Timer_Min*5/2;break;
-				case 4: PWM_Compare=PWM_Timer_Min*5/3;break;
-				case 5: PWM_Compare=PWM_Timer_Min*5/4;break;
-				case 6: PWM_Compare=PWM_Timer_Min*5/6;break;
-			}//5,10,15,20,30,40,60
-		}else PWM_Compare=1;
+			if(RI==1)RI=0;
+			PWM_Compare=SBUF;
+		}
+		else
+		{
+			if(PWM_Mod==7)
+			{
+				PWM_Compare=Light_Date[PWM_Timer_Min+1];
+			}
+			else
+			{
+				switch(PWM_Mod)
+					{	
+						case 0: PWM_Compare=(long)(PWM_Timer_Sec_Sum)*(long)(PWM_Timer_Sec_Sum)/900+1;break;
+						case 1: PWM_Compare=((long)(PWM_Timer_Sec_Sum/2)*(long)(PWM_Timer_Sec_Sum/2))/900+1;break;
+						case 2: PWM_Compare=((long)(PWM_Timer_Sec_Sum/3)*(long)(PWM_Timer_Sec_Sum/3))/900+1;break;
+						case 3: PWM_Compare=((long)(PWM_Timer_Sec_Sum/4)*(long)(PWM_Timer_Sec_Sum/4))/900+1;break;
+						case 4: PWM_Compare=((long)(PWM_Timer_Sec_Sum/6)*(long)(PWM_Timer_Sec_Sum/6))/900+1;break;
+						case 5: PWM_Compare=((long)(PWM_Timer_Sec_Sum/8)*(long)(PWM_Timer_Sec_Sum/8))/900+1;break;
+						case 6: PWM_Compare=((long)(PWM_Timer_Sec_Sum/12)*(long)(PWM_Timer_Sec_Sum/12))/900+1;break;
+					}//5,10,15,20,30,40,60
+			}
+		}
 	}
 	ET2=0;ET0=1;
 	IE0=0;EX0=1;
 	EX1=0;
-
 	RELAY=1;
+	if(RT_Light_Flag)
+	{
+		for(i=1;i<=10;i++)
+		{
+			UART_SendByte(0xFF);
+		}
+	}
 }
 #define DS3231_STATUS 0x0F
 
@@ -1588,14 +1620,14 @@ void Timer2_Routine(void) interrupt 5
 		P0_1=0;
 	}
 	PWM_Couter++;
-	PWM_Couter%=50;
-	//PWM_Compare %=50;
+	PWM_Couter%=100;
 	
 	PWM_Timer++;
 	if(PWM_Timer>=8450)
 	{
 		PWM_Timer=0;
 		PWM_Timer_Sec++;
+		PWM_Timer_Sec_Sum++;
 	}
 	if(PWM_Timer_Sec>=60)
 	{
