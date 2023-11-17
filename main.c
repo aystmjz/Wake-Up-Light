@@ -798,7 +798,7 @@ void main()
 		
 		if(TIME_Judge[2]!=TIME[2]||Refresh_Flag)
 		{
-		if(TIME[2]/10)OLED_ShowSymbol(16,4,TIME[2]/10+10,16);
+		OLED_ShowSymbol(16,4,TIME[2]/10+10,16);
 		OLED_ShowSymbol(32,4,TIME[2]%10+10,16);//ʱ
 		TIME_Judge[2]=TIME[2];
 		}
